@@ -7,8 +7,9 @@ import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel, FeatureEx
 // this trait provides standard routines of the monotone framework
 // (a general framework) for dataflow analyses such as liveness,
 // available expression, ...
-// in contrast to the original implementation this implementation
-// is variability-aware
+// in contrast to the original idea this implementation
+// is variability-aware; for more information about monotone framework
+// see "Principles of Program Analysis" by (Nielson, Nielson, Hankin)
 trait MonotoneFW extends Variables {
 
     // since C allows variable shadowing we need to track variable usages
@@ -148,42 +149,53 @@ trait MonotoneFW extends Variables {
     // the use of a either has "int a = 0;" or "int a = 1;" as declaration
     // udr holds rename versions of both variables and runs the analysis with it (e.g., int a = 0; -> a1
     // and int a = 1; -> a2)
-    protected def explodeIdUse(s: Set[Id], sfexp: FeatureExpr, udr: UsesDeclaresRel, res: Map[Id, FeatureExpr], diff: Boolean) = {
+    protected def explodeIdUse(s: Set[Id], sfexp: FeatureExpr, udr: UsesDeclaresRel, res: Map[Id, FeatureExpr], op: Boolean) = {
         var curres = res
         for (i <- s) {
             val newname = udr.get(i)
             newname match {
-                case null => curres = updateMap(curres, sfexp, Set(i), diff)
-                case None => curres = updateMap(curres, sfexp, Set(i), diff)
+                case null => curres = if (op) diff(curres, Set(i)) else join(curres, sfexp, Set(i))
+                case None => curres = if (op) diff(curres, Set(i)) else join(curres, sfexp, Set(i))
                 case Some(c) => {
                     val leaves = ConditionalLib.items(c)
                     for ((nfexp, nid) <- leaves)
-                        if (nid.isDefined) curres = updateMap(curres, sfexp and nfexp, Set(nid.get), diff)
-                        else curres = updateMap(curres, sfexp, Set(i), diff)
+                        if (nid.isDefined) curres = if (op) diff(curres, Set(nid.get)) else join(curres, sfexp and nfexp, Set(nid.get))
+                        else curres = if (op) diff(curres, Set(i)) else join(curres, sfexp, Set(i))
                 }
             }
         }
         curres
     }
 
-    protected def updateMap(map: Map[Id, FeatureExpr],
-                            fexp: FeatureExpr,
-                            difun: Set[Id],
-                            diff: Boolean): Map[Id, FeatureExpr] = {
+    // while monotone framework usually works on Sets
+    // we use maps here for efficiency reasons:
+    //   1. the obvious shift from non-variability-aware monotone framework to
+    //      a variability-aware version is to change the type of the result set
+    //      from Set[Id] to Set[Opt[Id]]. However this changes involves many lookups
+    //      and changes to the set.
+    //   2. We use Map[Id, FeatureExpr] since Id is our basic element of interest.
+    //      FeatureExpr do not matter so far (they are prominent when using Opt
+    //      nodes with List or Set). Since T matters operations on feature expression
+    //      are easy and can be delayed to the point at which we *really* need
+    //      the result. The delay also involves simplifications of feature
+    //      expressions such as "a or (not a) => true".
+    type ResultMap = Map[Id, FeatureExpr]
+
+    protected def diff(map: Map[Id, FeatureExpr], d: Set[Id]) = {
         var curmap = map
-
-        if (diff) {
-            for (v <- difun) curmap = curmap.-(v)
-        } else {
-            for (v <- difun) {
-                curmap.get(v) match {
-                    case None => curmap = curmap.+((v, fexp))
-                    case Some(x) => curmap = curmap.+((v, fexp or x))
-                }
-            }
-        }
-
+        for (e <- d)
+            curmap = curmap.-(e)
         curmap
     }
 
+    protected def join(map: Map[Id, FeatureExpr], fexp: FeatureExpr, j: Set[Id]) = {
+        var curmap = map
+        for (e <- j) {
+            curmap.get(e) match {
+                case None    => curmap = curmap.+((e, fexp))
+                case Some(x) => curmap = curmap.+((e, fexp or x))
+            }
+        }
+        curmap
+    }
 }

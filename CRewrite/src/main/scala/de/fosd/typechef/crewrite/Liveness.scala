@@ -38,8 +38,6 @@ trait Variables {
         case (a, env) => addAnnotation2ResultSet(uses(a, dataflowUses = true), env)
     }
 
-
-
     // returns all used Ids independent of their annotation
     def uses(a: Any, dataflowUses: Boolean): Set[Id] = {
         a match {
@@ -135,7 +133,7 @@ trait Liveness extends AttributionBase with Variables with IntraCFG with Monoton
     // of liveness determination
     val insimple: AST => Set[Id] = {
         circular[AST, Set[Id]](Set[Id]()) {
-            case FunctionDef(_, _, _, _) => Set()
+            case _: FunctionDef => Set()
             case e => {
                 val u = uses(e, dataflowUses = false)
                 val d = defines(e)
@@ -167,8 +165,8 @@ trait Liveness extends AttributionBase with Variables with IntraCFG with Monoton
                 val defines = definesVar(t, env)
 
                 var res = out(t)
-                for ((k, v) <- defines) res = explodeIdUse(v, k, udr, res, diff = true)
-                for ((k, v) <- uses) res = explodeIdUse(v, k, udr, res, diff = false)
+                for ((k, v) <- defines) res = explodeIdUse(v, k, udr, res, op = true)
+                for ((k, v) <- uses) res = explodeIdUse(v, k, udr, res, op = false)
                 res
             }
         }
@@ -181,7 +179,7 @@ trait Liveness extends AttributionBase with Variables with IntraCFG with Monoton
                 var res = Map[Id, FeatureExpr]()
                 for (s <- ss) {
                     for ((r, f) <- in(s.entry))
-                        res = updateMap(res, f and s.feature, Set(r), diff = false)
+                        res = join(res, f and s.feature, Set(r))
                 }
                 res
             }
