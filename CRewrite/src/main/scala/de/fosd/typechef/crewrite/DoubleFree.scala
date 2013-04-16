@@ -21,16 +21,32 @@ trait DoubleFree extends IntraCFG with ASTNavigation {
 
     // determine whether a given AST element a
     // contains a memory allocation call (malloc, calloc, or realloc)
-    // TODO: malloc, calloc, realloc may not be from stdlib.h
-    //       using string equality here only!!!
+    // we ensure that malloc, calloc, realloc are from /usr/include/stdlib.h
     private def containsMemoryAllocationCall(a: AST): Boolean = {
         var res = false
         val memalloc = manytd(query {
-            case PostfixExpr(Id("malloc"), _) => res = true
-            case PostfixExpr(Id("calloc"), _) => res = true
-            case PostfixExpr(Id("realloc"), _) => res = true
+            case PostfixExpr(i@Id(s), _) => {
+                if (i.hasPosition
+                        && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h")
+                        && (s.equals("malloc") || s.equals("calloc") || s.equals("realloc"))
+                ) res = true
+            }
         })
         memalloc(a)
+        res
+    }
+
+    // determine whether a given AST element a
+    // contains a call to free (memory deallocation)
+    // we ensure that free is from /usr/include/stdlib.h
+    private def containsFreeCall(a: AST): Boolean = {
+        var res = false
+        val free = manytd(query {
+            case PostfixExpr(i@Id("free"), _) => {
+                if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h")) res = true
+            }
+        })
+        free(a)
         res
     }
 
