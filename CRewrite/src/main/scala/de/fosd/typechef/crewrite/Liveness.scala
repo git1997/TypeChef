@@ -2,7 +2,6 @@ package de.fosd.typechef.crewrite
 
 import de.fosd.typechef.featureexpr._
 import java.util
-import de.fosd.typechef.conditional._
 import de.fosd.typechef.parser.c._
 import org.kiama.attribution.AttributionBase
 import de.fosd.typechef.conditional.Opt
@@ -123,7 +122,7 @@ class IdentityHashMapCache[A] {
     }
 }
 
-trait Liveness extends AttributionBase with Variables with IntraCFG with MonotoneFW {
+trait Liveness extends AttributionBase with Variables with IntraCFG with MonotoneFW[Id] {
 
     // cf. http://www.cs.colostate.edu/~mstrout/CS553/slides/lecture03.pdf
     // page 5
@@ -206,4 +205,6 @@ trait Liveness extends AttributionBase with Variables with IntraCFG with Monoton
             }
         }
     }
+
+    override def id2SetT(i: Id) = Set(i)
 }
