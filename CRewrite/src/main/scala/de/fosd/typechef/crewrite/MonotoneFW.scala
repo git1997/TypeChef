@@ -167,7 +167,13 @@ trait MonotoneFW[T] extends Variables {
         curres
     }
 
-    protected def id2SetT(i: Id): Set[T] = Set()
+    // trait members cannot be abstract; therefore, we enforce
+    // overriding of id2SetT when writing an own analysis
+    // and using explodeIdUse
+    protected def id2SetT(i: Id): Set[T] = {
+        assert(assertion = false, "You have to override is2SetT when using it")
+        Set()
+    }
 
     // while monotone framework usually works on Sets
     // we use maps here for efficiency reasons:
