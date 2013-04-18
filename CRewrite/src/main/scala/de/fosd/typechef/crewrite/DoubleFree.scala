@@ -26,9 +26,9 @@ trait DoubleFree extends IntraCFG with ASTNavigation {
         var res = false
         val memalloc = manytd(query {
             case PostfixExpr(i@Id(s), _) => {
-                if (i.hasPosition
-                        && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h")
-                        && (s.equals("malloc") || s.equals("calloc") || s.equals("realloc"))
+                if ((s.equals("malloc") || s.equals("calloc") || s.equals("realloc"))
+                    // && i.hasPosition
+                    // && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h")
                 ) res = true
             }
         })
@@ -43,7 +43,8 @@ trait DoubleFree extends IntraCFG with ASTNavigation {
         var res = false
         val free = manytd(query {
             case PostfixExpr(i@Id("free"), _) => {
-                if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h")) res = true
+                // if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h"))
+                    res = true
             }
         })
         free(a)
