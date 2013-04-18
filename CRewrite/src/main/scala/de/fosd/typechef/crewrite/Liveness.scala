@@ -1,7 +1,6 @@
 package de.fosd.typechef.crewrite
 
 import de.fosd.typechef.featureexpr._
-import java.util
 import de.fosd.typechef.parser.c._
 import org.kiama.attribution.AttributionBase
 import de.fosd.typechef.conditional.Opt
@@ -113,7 +112,7 @@ trait Variables {
 }
 
 class IdentityHashMapCache[A] {
-    private val cache: java.util.IdentityHashMap[Any, A] = new util.IdentityHashMap[Any, A]()
+    private val cache: java.util.IdentityHashMap[Any, A] = new java.util.IdentityHashMap[Any, A]()
     def update(k: Any, v: A) { cache.put(k, v) }
     def lookup(k: Any): Option[A] = {
         val v = cache.get(k)
