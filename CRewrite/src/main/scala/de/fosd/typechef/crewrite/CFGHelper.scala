@@ -23,7 +23,7 @@ trait CFGHelper extends IntraCFG {
         d = d ++ List(c)
       }
     }
-    r
+    r.reverse
   }
 
   // determine recursively all pred

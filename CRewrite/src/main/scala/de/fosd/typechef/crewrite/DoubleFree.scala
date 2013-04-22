@@ -4,6 +4,8 @@ import de.fosd.typechef.parser.c._
 
 import org.kiama.rewriting.Rewriter._
 import de.fosd.typechef.parser.c.Id
+import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
+import de.fosd.typechef.conditional.Opt
 
 // implements a simple analysis of double-free
 // freeing memory multiple times [dblfree]
@@ -17,11 +19,11 @@ import de.fosd.typechef.parser.c.Id
 //     is a conservative analysis for program flow
 //     so the analysis will likely produce a lot
 //     of false positives
-trait DoubleFree extends IntraCFG with ASTNavigation {
+trait DoubleFree extends IntraCFG with CFGHelper with ASTNavigation {
 
     // determine whether a given AST element a
     // contains a memory allocation call (malloc, calloc, or realloc)
-    // we ensure that malloc, calloc, realloc are from /usr/include/stdlib.h
+    // we ensure that malloc, calloc, realloc are from /usr/include/stdlib.h (see comment)
     private def containsMemoryAllocationCall(a: AST): Boolean = {
         var res = false
         val memalloc = manytd(query {
@@ -36,22 +38,7 @@ trait DoubleFree extends IntraCFG with ASTNavigation {
         res
     }
 
-    // determine whether a given AST element a
-    // contains a call to free (memory deallocation)
-    // we ensure that free is from /usr/include/stdlib.h
-    private def containsFreeCall(a: AST): Boolean = {
-        var res = false
-        val free = manytd(query {
-            case PostfixExpr(i@Id("free"), _) => {
-                // if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h"))
-                    res = true
-            }
-        })
-        free(a)
-        res
-    }
-
-    // returns a list of IDs with names of variables that point to
+    // returns a list of Ids with names of variables that point to
     // dynamically created memory regions (malloc, calloc, realloc)
     def getHeapPointers(a: AST): Set[Id] = {
         var res = Set[Id]()
@@ -65,6 +52,56 @@ trait DoubleFree extends IntraCFG with ASTNavigation {
         })
 
         mempointers(a)
+        res
+    }
+
+    // returns a list of Ids with names of variables that a freed
+    // by call to free
+    // we ensure (see comment) that call to free belongs to system free function
+    // (see /usr/include/stdlib.h)
+    def getFreedPointers(a: AST): Set[Id] = {
+        var res = Set[Id]()
+        val freedpointers = manytd(query {
+            case PostfixExpr(i@Id("free"), FunctionCall(l)) => {
+                // if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h"))
+                for (e <- l.exprs)
+                    for (ni <- filterAllASTElems[Id](e))
+                        res += ni
+            }
+        })
+
+        freedpointers(a)
+        res
+    }
+
+    // returns true if f is free of double-free errors; returns false otherwise
+    def check(f: CompoundStatement, fm: FeatureModel): List[AnalysisError] = {
+        var res = List[AnalysisError]()
+
+        // maintain a map of dynamically created memory locations and their free calls.
+        var mres = Map[Id, List[Id]]()
+
+        // basic idea is to get all successor elements of f
+        // iterate over the list, fetch pointers of malloc, ... calls
+        // and check subsequent control flow statements for double free
+        val env = CASTEnv.createASTEnv(f)
+        val wlist = getAllSucc(f, fm, env).map(_._1)
+        for (s <- wlist) {
+            val hp = getHeapPointers(s)
+            for (hpelem <- hp)
+                mres = mres.+((hpelem, List()))
+
+            val fp = getFreedPointers(s)
+            for (fpelem <- fp) {
+                if (mres.isDefinedAt(fpelem)) {
+                    val clist = fpelem::mres.get(fpelem).get
+                    mres = mres.+((fpelem, clist))
+                    if (clist.size > 1)
+                        res ::= new AnalysisError(env.featureExpr(fpelem), "Potential double free error!", clist.head)
+                }
+            }
+        }
+
         res
     }
 }

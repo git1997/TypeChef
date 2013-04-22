@@ -3,30 +3,42 @@ package de.fosd.typechef.crewrite
 import de.fosd.typechef.parser.c.{Id, TestHelper}
 import org.junit.Test
 import org.scalatest.matchers.ShouldMatchers
+import de.fosd.typechef.featureexpr.FeatureExprFactory
 
 class DoubleFreeTest extends TestHelper with ShouldMatchers with DoubleFree {
 
     // runs an example
-    // parses code as compoundstatement so we can parse declarations, expressions, and statements
+    // parses code as compound statement so we can parse declarations, expressions, and statements
     // without having to call different parse functions
-    private def runExample(code: String) = {
+    private def getDynAllocatedMem(code: String) = {
         val a = parseCompoundStmt(code)
         getHeapPointers(a)
     }
 
+    // checks a whole compound statement for double free errors
+    private def checkCompoundStatement(code: String) = {
+        val a = parseCompoundStmt(code)
+        check(a, FeatureExprFactory.empty).isEmpty
+    }
+
     @Test def test_pointers() {
-        runExample("{ int *a = malloc(2); }") should be(Set(Id("a")))
-        runExample("{ void *a,*b = malloc(2); }") should be(Set(Id("b")))
+        getDynAllocatedMem("{ int *a = malloc(2); }") should be(Set(Id("a")))
+        getDynAllocatedMem("{ void *a,*b = malloc(2); }") should be(Set(Id("b")))
         // tricky example: a and b are aliases for each other
-        runExample("{ void *a,*b; a = b = malloc(2); } ") should be(Set(Id("a"), Id("b")))
-        runExample("{ void *a = malloc(2),*b; }") should be(Set(Id("a")))
-        runExample("{ a = malloc(2); }") should be(Set(Id("a")))
-        runExample(
+        getDynAllocatedMem("{ void *a,*b; a = b = malloc(2); } ") should be(Set(Id("a"), Id("b")))
+        getDynAllocatedMem("{ void *a = malloc(2),*b; }") should be(Set(Id("a")))
+        getDynAllocatedMem("{ a = malloc(2); }") should be(Set(Id("a")))
+        getDynAllocatedMem(
             """{
               |struct expr {
               |  int a;
               |};
               |struct expr *e = malloc(sizeof(*e));
               |}""".stripMargin) should be(Set(Id("e")))
+    }
+
+    @Test def test_doublefree_simple() {
+        checkCompoundStatement("{ int *a = malloc(2); free(a); free(a); } ") should be(false)
+        checkCompoundStatement("{ int *a = malloc(2); free(a); } ") should be(true)
     }
 }
