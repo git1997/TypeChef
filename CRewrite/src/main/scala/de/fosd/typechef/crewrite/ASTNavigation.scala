@@ -164,6 +164,7 @@ trait ASTNavigation {
     }
   }
 
+
   // go up the AST hierarchy and loog for specific AST elements with type T
   def findPriorASTElems[T <: AST](a: Product, env: ASTEnv)(implicit m: ClassTag[T]): List[T] = {
     a match {

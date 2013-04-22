@@ -14,6 +14,8 @@ import parser.TokenReader
 
 object Frontend {
 
+    // TODO: this is a dependency of Morpheus; should be removed eventually.
+    private var storedAst: AST = null
 
     def main(args: Array[String]) {
         // load options
@@ -80,20 +82,6 @@ object Frontend {
             println("file has contradictory presence condition. existing.") //otherwise this can lead to strange parser errors, because True is satisfiable, but anything else isn't
             return
         }
-        /*
-                val pcs = new FeatureExprParser(FeatureExprFactory.sat).parseFile("../TypeChef-LinuxAnalysis/tmpFolder/pcs.txt")
-                opt.getFeatureModelTypeSystem.and(pcs).asInstanceOf[SATFeatureModel].writeToDimacsFile(new File(
-                    //"/home/rhein/Tools/TypeChef/GitClone/TypeChef-BusyboxAnalysis/BB_fm.dimacs"
-                    "/home/rhein/Tools/TypeChef/GitClone/TypeChef-LinuxAnalysis/tmpFolder/SuperFM.dimacs"
-                ))
-                if (pcs.and(FeatureExprFactory.True).isSatisfiable(fm)) {
-                    println("TypeSystem SuperFM is satisfiable")
-                } else {
-                    println("TypeSystem SuperFM is NOT satisfiable")
-                }
-                if (true) return
-        */
-        new lexer.Main().run(opt, opt.parse)
 
         stopWatch.start("lexing")
         val in = lex(opt)
@@ -110,6 +98,7 @@ object Frontend {
                 serializeAST(ast, opt.getSerializedASTFilename)
 
             if (ast != null) {
+                storedAst = ast
                 val fm_ts = opt.getFeatureModelTypeSystem.and(opt.getLocalFeatureModel).and(opt.getFilePresenceCondition)
                 val ts = new CTypeSystemFrontend(ast.asInstanceOf[TranslationUnit], fm_ts)
 
@@ -119,8 +108,28 @@ object Frontend {
                 if (opt.typecheck || opt.writeInterface) {
                     stopWatch.start("typechecking")
                     println("type checking.")
-                    ts.checkAST
+                    val typeCheckStatus = ts.checkAST
                     ts.errors.map(errorXML.renderTypeError(_))
+
+                    if (opt.ifdeftoif) {
+                        if (typeCheckStatus) {
+                            val i = new IfdefToIf
+                            val defUseMap = ts.getDeclUseMap
+                            val fileName = i.outputStemToFileName(opt.outputStem)
+                            val tuple = i.ifdeftoif(ast, defUseMap, fm, opt.outputStem, stopWatch.get("lexing") + stopWatch.get("parsing"))
+                            tuple._1 match {
+                                case None =>
+                                    println("!! Transformation of " ++ fileName ++ " unsuccessful because of type errors in transformation result !!")
+                                case Some(x) =>
+                                    if (!opt.outputStem.isEmpty) {
+                                        PrettyPrinter.printF(x, opt.outputStem ++ ".ifdeftoif")
+                                        println("++Transformed: " ++ fileName ++ "++\t\t --in " + tuple._2 ++ " ms--")
+                                    }
+                            }
+                        } else {
+                            println("#ifdef to if transformation unsuccessful because of type errors in source file")
+                        }
+                    }
                 }
                 if (opt.writeInterface) {
                     stopWatch.start("interfaces")
@@ -134,9 +143,7 @@ object Frontend {
                 if (opt.dumpcfg) {
                     stopWatch.start("dumpCFG")
                     val cf = new CAnalysisFrontend(ast.asInstanceOf[TranslationUnit], fm_ts)
-                    val file = opt.getFile.replace(".c",".dot")
-                    cf.dumpCFG(new FileWriter(file))
-                    println("CFGDump written to (" + file + ")")
+                    cf.dumpCFG()
                 }
             }
 
@@ -159,4 +166,6 @@ object Frontend {
         fw.write(ast.toString)
         fw.close()
     }
+
+    def getAST = storedAst
 }

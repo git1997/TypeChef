@@ -17,17 +17,18 @@ import java.util.List;
 
 
 public class FrontendOptions extends LexerOptions implements ParserOptions {
-    public boolean parse = true,
-                   typecheck = false,
-                   writeInterface = false,
-                   dumpcfg = false,
-                   dataFlow = false,
-                   serializeAST = false,
-                   writeDebugInterface = false,
-                   recordTiming = false,
-                   parserStatistics = false,
-                   parserResults = true,
-                   writePI = false;
+    boolean parse = true,
+            typecheck = false,
+			ifdeftoif = false,
+            writeInterface = false,
+            dumpcfg = false,
+            dataFlow = false,
+            serializeAST = false,
+            writeDebugInterface = false,
+            recordTiming = false,
+            parserStatistics = false,
+            parserResults = true,
+            writePI = false;
     protected File errorXMLFile = null;
     private final File _autoErrorXMLFile = new File(".");
     String outputStem = "";

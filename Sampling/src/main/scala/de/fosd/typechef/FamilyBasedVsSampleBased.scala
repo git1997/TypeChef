@@ -1,8 +1,6 @@
 package de.fosd.typechef
 
-import conditional.Choice
-import conditional.One
-import conditional.Opt
+
 import de.fosd.typechef.conditional.{One, Choice, Opt}
 import crewrite._
 import de.fosd.typechef.featureexpr._
@@ -10,8 +8,6 @@ import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, SatSolver}
 import de.fosd.typechef.featureexpr.sat.{SATFeatureModel, SATFeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.parser.c.CTypeContext
-import de.fosd.typechef.parser.c.TranslationUnit
 import de.fosd.typechef.typesystem.CTypeSystemFrontend
 import parser.c.CTypeContext
 import parser.c.FunctionDef
@@ -25,7 +21,6 @@ import java.util.regex.Pattern
 import java.lang.SuppressWarnings
 import java.io._
 import util.Random
-import scala.Some
 import java.util.Collections
 import scala.Some
 
@@ -573,24 +568,24 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
     ts.checkASTSilent
     ts.checkASTSilent
     ts.checkASTSilent
-    liveness(tu)
-    liveness(tu)
-    liveness(tu)
+    val udm = ts.getUseDeclMap
+    liveness(tu, udm)
+    liveness(tu, udm)
+    liveness(tu, udm)
   }
 
-  private def liveness(tunit: AST, fm: FeatureModel = FeatureExprFactory.empty) {
+  private def liveness(tunit: AST, udm: UseDeclMap, fm: FeatureModel = FeatureExprFactory.empty) {
     val fdefs = filterAllASTElems[FunctionDef](tunit)
-    fdefs.map(intraDataflowAnalysis(_, fm))
+    fdefs.map(intraDataflowAnalysis(_, udm, fm))
   }
 
-  private def intraDataflowAnalysis(f: FunctionDef, fm: FeatureModel) {
+  private def intraDataflowAnalysis(f: FunctionDef, udm: UseDeclMap, fm: FeatureModel) {
     if (f.stmt.innerStatements.isEmpty) return
 
     val env = CASTEnv.createASTEnv(f)
     setEnv(env)
     val ss = getAllSucc(f.stmt.innerStatements.head.entry, FeatureExprFactory.empty, env)
-    val udr = determineUseDeclareRelation(f)
-    setUdr(udr)
+    setUseDeclMap(udm)
     setFm(fm)
 
     val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
@@ -631,6 +626,7 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
       curTime = (tb.getCurrentThreadCpuTime - lastTime)
       times = times.:+(curTime)
     }
+    val udm = ts.getUseDeclMap
     val familyTime: Long = median(times) / nstoms
 
     println("fam-time: " + (median(times) / nstoms))
@@ -642,7 +638,7 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
 
     for (_ <- 0 until checkXTimes) {
       lastTimeDf = tb.getCurrentThreadCpuTime
-      liveness(tunit, fm)
+      liveness(tunit, udm, fm)
       curTimeDf = (tb.getCurrentThreadCpuTime - lastTimeDf)
       timesDf = timesDf.:+(curTimeDf)
     }
@@ -686,6 +682,7 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
           curTime = (tb.getCurrentThreadCpuTime - lastTime)
           times = times.:+(curTime)
         }
+        val udm = ts.getUseDeclMap
         val productTime: Long = median(times) / nstoms
 
         tcProductTimes ::= productTime // append to the beginning of tcProductTimes
@@ -697,7 +694,7 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
         var timesDf = Seq[Long]()
         for (_ <- 0 until checkXTimes) {
           lastTimeDf = tb.getCurrentThreadCpuTime
-          liveness(product)
+          liveness(product, udm)
           curTimeDf = (tb.getCurrentThreadCpuTime - lastTimeDf)
           timesDf = timesDf.:+(curTimeDf)
         }

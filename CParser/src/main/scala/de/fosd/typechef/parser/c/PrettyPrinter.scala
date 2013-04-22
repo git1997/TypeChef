@@ -1,5 +1,7 @@
 package de.fosd.typechef.parser.c
 
+import java.io.{Writer, FileWriter, StringWriter}
+
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureExpr}
 
@@ -14,24 +16,19 @@ object PrettyPrinter {
     }
 
     case object Empty extends Doc
-
     case object Line extends Doc
-
     case class Text(s: String) extends Doc
-
     case class Cons(left: Doc, right: Doc) extends Doc
-
     case class Nest(n: Int, d: Doc) extends Doc
 
     implicit def string(s: String): Doc = Text(s)
 
     val line = Line
     val space = Text(" ")
+    var newLineForIfdefs = true
 
     def nest(n: Int, d: Doc) = Nest(n, d)
-
     def block(d: Doc): Doc = "{" ~> d * "}"
-
 
     def layout(d: Doc): String = d match {
         case Empty => ""
@@ -45,8 +42,37 @@ object PrettyPrinter {
         case Nest(i, Nest(j, x)) => layout(Nest(i + j, x))
     }
 
+    // old version causing stack overflows and pretty slow
+    //def print(ast: AST): String = layout(prettyPrint(ast))
+    // new awesome fast version using a string writer instance
+    def print(ast: AST): String = printW(ast, new StringWriter()).toString
 
-    def print(ast: AST): String = layout(prettyPrint(ast))
+    def layoutW(d: Doc, p: Writer): Unit = d match {
+        case Empty => p.write("")
+        case Line => p.write("\n")
+        case Text(s) => p.write(s)
+        case Cons(l, r) =>
+            layoutW(l, p)
+            layoutW(r, p)
+        case Nest(n, Empty) => layoutW(Empty, p)
+        case Nest(n, Line) => p.write("\n" + (" " * n))
+        case Nest(n, Text(s)) => layoutW(Text(s), p)
+        case Nest(n, Cons(l, r)) => layoutW(Cons(Nest(n, l), Nest(n, r)), p)
+        case Nest(i, Nest(j, x)) => layoutW(Nest(i + j, x), p)
+        case _ =>
+    }
+
+    def printW(ast: AST, writer: Writer): Writer = {
+        layoutW(prettyPrint(ast), writer)
+        writer
+    }
+
+    def printF(ast: AST, path: String, newLines: Boolean = true) = {
+        newLineForIfdefs = newLines
+        val writer = new FileWriter(path)
+        layoutW(prettyPrint(ast), writer)
+        writer.close()
+    }
 
 
     def ppConditional(e: Conditional[_], list_feature_expr: List[FeatureExpr]): Doc = e match {
@@ -98,6 +124,7 @@ object PrettyPrinter {
         def commaSep(l: List[Opt[AST]]) = sep(l, _ ~ "," ~~ _)
         def spaceSep(l: List[Opt[AST]]) = sep(l, _ ~~ _)
         def opt(o: Option[AST]): Doc = if (o.isDefined) o.get else Empty
+        def optCond(o: Option[Conditional[AST]]): Doc = if (o.isDefined) o.get else Empty
         def optExt(o: Option[AST], ext: (Doc) => Doc): Doc = if (o.isDefined) ext(o.get) else Empty
         def optCondExt(o: Option[Conditional[AST]], ext: (Doc) => Doc): Doc = if (o.isDefined) ext(o.get) else Empty
 
@@ -170,7 +197,7 @@ object PrettyPrinter {
             case VolatileSpecifier() => "volatile"
             case ExternSpecifier() => "extern"
             case ConstSpecifier() => "const"
-            case RestrictSpecifier() => "restrict"
+            case RestrictSpecifier() => "__restrict"
             case StaticSpecifier() => "static"
 
             case AtomicAttribute(n: String) => n
@@ -180,8 +207,18 @@ object PrettyPrinter {
             case Declaration(declSpecs, init) =>
                 sep(declSpecs, _ ~~ _) ~~ commaSep(init) ~ ";"
 
-            case InitDeclaratorI(declarator, _, Some(i)) => declarator ~~ "=" ~~ i
-            case InitDeclaratorI(declarator, _, None) => declarator
+            case InitDeclaratorI(declarator, lst, Some(i)) =>
+                if (!lst.isEmpty) {
+                    declarator ~~ sep(lst, _ ~~ _) ~~ "=" ~~ i
+                } else {
+                    declarator ~~ "=" ~~ i
+                }
+            case InitDeclaratorI(declarator, lst, None) =>
+                if (!lst.isEmpty) {
+                    declarator ~~ sep(lst, _ ~~ _)
+                } else {
+                    declarator
+                }
             case InitDeclaratorE(declarator, _, e: Expr) => declarator ~ ":" ~~ e
 
             case AtomicNamedDeclarator(pointers, id, extensions) =>
@@ -197,7 +234,12 @@ object PrettyPrinter {
             case DeclParameterDeclList(parameterDecls) => "(" ~ commaSep(parameterDecls) ~ ")"
             case DeclArrayAccess(expr) => "[" ~ opt(expr) ~ "]"
             case Initializer(initializerElementLabel, expr: Expr) => opt(initializerElementLabel) ~~ expr
-            case Pointer(specifier) => "*" ~ spaceSep(specifier)
+            case Pointer(specifier) =>
+                if (specifier.isEmpty) {
+                    "*" ~ spaceSep(specifier)
+                } else {
+                    "*" ~ spaceSep(specifier) ~ " "
+                }
             case PlainParameterDeclaration(specifiers) => spaceSep(specifiers)
             case ParameterDeclarationD(specifiers, decl) => spaceSep(specifiers) ~~ decl
             case ParameterDeclarationAD(specifiers, decl) => spaceSep(specifiers) ~~ decl
@@ -218,11 +260,17 @@ object PrettyPrinter {
             case TypeName(specifiers, decl) => spaceSep(specifiers) ~~ opt(decl)
 
             case GnuAttributeSpecifier(attributeList) => "__attribute__((" ~ commaSep(attributeList) ~ "))"
-            case AsmAttributeSpecifier(stringConst) => stringConst
+            case AsmAttributeSpecifier(stringConst) => "__asm__( " ~ stringConst ~ ")"
             case LcurlyInitializer(inits) => "{" ~ commaSep(inits) ~ "}"
             case AlignOfExprT(typeName: TypeName) => "__alignof__(" ~ typeName ~ ")"
             case AlignOfExprU(expr: Expr) => "__alignof__" ~~ expr
-            case GnuAsmExpr(isVolatile: Boolean, isAuto, expr: StringLit, stuff: Any) => "asm"
+            case GnuAsmExpr(isVolatile: Boolean, isAuto, expr: StringLit, stuff: Any) =>
+                var ret = "asm" ~~ (if (isVolatile) "volatile " else "")
+                /*if(stuff.isInstanceOf[Some[AST]] || stuff.asInstanceOf[Some[AST]].isEmpty)
+                  ret = ret ~ "(" ~ expr ~~ ":" ~~ "" ~~ ")" //TODO: this is not correct: the "" should be replaced with the contents of stuff
+                else*/
+                ret = ret ~ "(" ~ expr ~ ")"
+                ret
             case RangeExpr(from: Expr, to: Expr) => from ~~ "..." ~~ to
             case TypeOfSpecifierT(typeName: TypeName) => "typeof(" ~ typeName ~ ")"
             case TypeOfSpecifierU(e: Expr) => "typeof(" ~ e ~ ")"
@@ -231,14 +279,14 @@ object PrettyPrinter {
             case InitializerDesignatorC(id: Id) => id ~ ":"
             case InitializerAssigment(desgs) => spaceSep(desgs) ~~ "="
             case BuiltinOffsetof(typeName: TypeName, offsetofMemberDesignator) => "__builtin_offsetof(" ~ typeName ~ "," ~~ spaceSep(offsetofMemberDesignator) ~ ")"
-            case OffsetofMemberDesignatorID(id: Id) => "." ~ id
+            case OffsetofMemberDesignatorID(id: Id) => id
             case OffsetofMemberDesignatorExpr(expr: Expr) => "[" ~ expr ~ "]"
             case BuiltinTypesCompatible(typeName1: TypeName, typeName2: TypeName) => "__builtin_types_compatible_p(" ~ typeName1 ~ "," ~~ typeName2 ~ ")"
             case BuiltinVaArgs(expr: Expr, typeName: TypeName) => "__builtin_va_arg(" ~ expr ~ "," ~~ typeName ~ ")"
             case CompoundStatementExpr(compoundStatement: CompoundStatement) => "(" ~ compoundStatement ~ ")"
             case Pragma(command: StringLit) => "_Pragma(" ~ command ~ ")"
 
-            case e => assert(assertion = false, message = "match not exhaustive: " + e); ""
+            case e => assert(false, "match not exhaustive: " + e); ""
         }
     }
 

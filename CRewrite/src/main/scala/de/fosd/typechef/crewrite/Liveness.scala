@@ -8,6 +8,8 @@ import de.fosd.typechef.conditional.Opt
 // defines and uses we can jump to using succ
 // beware of List[Opt[_]]!! all list elements can possibly have a different annotation
 trait Variables {
+
+
     // add annotation to elements of a Set[Id]
     // used for uses, defines, and declares
     private def addAnnotation2ResultSet(in: Set[Id], env: ASTEnv): Map[FeatureExpr, Set[Id]] = {
@@ -163,8 +165,15 @@ trait Liveness extends AttributionBase with Variables with IntraCFG with Monoton
                 val defines = definesVar(t, env)
 
                 var res = out(t)
-                for ((k, v) <- defines) res = explodeIdUse(v, k, udr, res, op = true)
-                for ((k, v) <- uses) res = explodeIdUse(v, k, udr, res, op = false)
+                for ((k, v) <- defines)
+                    for (d <- v)
+                        for (nd <- udm.get(d))
+                            res = diff(res, Set(nd))
+                for ((k, v) <- uses)
+                    for (u <- v)
+                        for (ud <- udm.get(u))
+                            res = join(res, k, Set(ud))
+
                 res
             }
         }
