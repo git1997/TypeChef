@@ -9,7 +9,7 @@ import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExpr}
 // in contrast to the original idea this implementation
 // is variability-aware; for more information about monotone frameworks
 // see "Principles of Program Analysis" by (Nielson, Nielson, Hankin)
-trait MonotoneFW[T] extends Variables {
+trait MonotoneFW[T] {
 
     // since C allows variable shadowing we need to track variable usages
     // to their corresponding declarations

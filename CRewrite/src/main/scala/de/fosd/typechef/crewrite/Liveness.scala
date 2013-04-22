@@ -9,7 +9,6 @@ import de.fosd.typechef.conditional.Opt
 // beware of List[Opt[_]]!! all list elements can possibly have a different annotation
 trait Variables {
 
-
     // add annotation to elements of a Set[Id]
     // used for uses, defines, and declares
     private def addAnnotation2ResultSet(in: Set[Id], env: ASTEnv): Map[FeatureExpr, Set[Id]] = {
@@ -28,18 +27,8 @@ trait Variables {
         res
     }
 
-    // returns all used variables with their annotation
-    val usesVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, env) => addAnnotation2ResultSet(uses(a, dataflowUses = false), env)
-    }
-
-    // returns all used variables (apart from declarations) with their annotation
-    val dataflowUsesVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, env) => addAnnotation2ResultSet(uses(a, dataflowUses = true), env)
-    }
-
     // returns all used Ids independent of their annotation
-    def uses(a: Any, dataflowUses: Boolean): Set[Id] = {
+    private def uses(a: Any, dataflowUses: Boolean): Set[Id] = {
         a match {
             case ForStatement(expr1, expr2, expr3, _) => uses(expr1, dataflowUses) ++ uses(expr2, dataflowUses) ++ uses(expr3, dataflowUses)
             case ReturnStatement(Some(x)) => uses(x, dataflowUses)
@@ -77,7 +66,7 @@ trait Variables {
     }
 
     // returns all defined Ids independent of their annotation
-    val defines: PartialFunction[Any, Set[Id]] = {
+    private val defines: PartialFunction[Any, Set[Id]] = {
         case i@Id(_) => Set(i)
         case AssignExpr(target, _, source) => defines(target)
         case DeclarationStatement(d) => defines(d)
@@ -93,7 +82,7 @@ trait Variables {
     }
 
     // returns all declared Ids independent of their annotation
-    val declares: PartialFunction[Any, Set[Id]] = {
+    private val declares: PartialFunction[Any, Set[Id]] = {
         case DeclarationStatement(decl) => declares(decl)
         case Declaration(_, init) => init.flatMap(declares).toSet
         case InitDeclaratorI(declarator, _, _) => declares(declarator)
@@ -107,9 +96,9 @@ trait Variables {
         case (a, env) => addAnnotation2ResultSet(defines(a), env)
     }
 
-    // returns all declared variables with their annotation
-    val declaresVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, env) => addAnnotation2ResultSet(declares(a), env)
+    // returns all used variables with their annotation
+    val usesVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
+        case (a, env) => addAnnotation2ResultSet(uses(a, dataflowUses = false), env)
     }
 }
 
@@ -129,35 +118,8 @@ trait Liveness extends AttributionBase with Variables with IntraCFG with Monoton
     // page 5
     //  in(n) = uses(n) + (out(n) - defines(n))
     // out(n) = for s in succ(n) r = r + in(s); r
-    // insimple and outsimple are the non variability-aware in and out versiosn
-    // of liveness determination
-    val insimple: AST => Set[Id] = {
-        circular[AST, Set[Id]](Set[Id]()) {
-            case _: FunctionDef => Set()
-            case e => {
-                val u = uses(e, dataflowUses = false)
-                val d = defines(e)
-                var res = outsimple(e)
 
-                res = u.union(res.diff(d))
-                res
-            }
-        }
-    }
-
-    val outsimple: AST => Set[Id] = {
-        circular[AST, Set[Id]](Set[Id]()) {
-            case e => {
-                val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
-                var res: Set[Id] = Set()
-                for (s <- ss.map(_.entry)) res = res.union(insimple(s))
-                res
-            }
-        }
-    }
-
-     // in and out variability-aware versions
-    val inrec: AST => Map[Id, FeatureExpr] = {
+    private val inrec: AST => Map[Id, FeatureExpr] = {
         circular[AST, Map[Id, FeatureExpr]](Map[Id, FeatureExpr]()) {
             case FunctionDef(_, _, _, _) => Map()
             case t => {
@@ -179,7 +141,7 @@ trait Liveness extends AttributionBase with Variables with IntraCFG with Monoton
         }
     }
 
-    val outrec: AST => Map[Id, FeatureExpr] =
+    private val outrec: AST => Map[Id, FeatureExpr] =
         circular[AST, Map[Id, FeatureExpr]](Map[Id, FeatureExpr]()) {
             case e => {
                 val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
