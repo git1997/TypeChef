@@ -5,9 +5,17 @@ import de.fosd.typechef.parser.c._
 import org.kiama.attribution.AttributionBase
 import de.fosd.typechef.conditional.Opt
 
-// defines and uses we can jump to using succ
-// beware of List[Opt[_]]!! all list elements can possibly have a different annotation
-trait Variables {
+class IdentityHashMapCache[A] {
+    private val cache: java.util.IdentityHashMap[Any, A] = new java.util.IdentityHashMap[Any, A]()
+    def update(k: Any, v: A) { cache.put(k, v) }
+    def lookup(k: Any): Option[A] = {
+        val v = cache.get(k)
+        if (v != null) Some(v)
+        else None
+    }
+}
+
+trait Liveness extends AttributionBase with IntraCFG with MonotoneFW[Id] {
 
     // add annotation to elements of a Set[Id]
     // used for uses, defines, and declares
@@ -88,31 +96,18 @@ trait Variables {
 
     // returns all declared variables with their annotation
     val declaresVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, env) => addAnnotation2ResultSet(declares(a), env)
+        case (a, e) => addAnnotation2ResultSet(declares(a), e)
     }
 
     // returns all defined variables with their annotation
     val definesVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, env) => addAnnotation2ResultSet(defines(a), env)
+        case (a, e) => addAnnotation2ResultSet(defines(a), e)
     }
 
     // returns all used variables with their annotation
     val usesVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, env) => addAnnotation2ResultSet(uses(a), env)
+        case (a, e) => addAnnotation2ResultSet(uses(a), e)
     }
-}
-
-class IdentityHashMapCache[A] {
-    private val cache: java.util.IdentityHashMap[Any, A] = new java.util.IdentityHashMap[Any, A]()
-    def update(k: Any, v: A) { cache.put(k, v) }
-    def lookup(k: Any): Option[A] = {
-        val v = cache.get(k)
-        if (v != null) Some(v)
-        else None
-    }
-}
-
-trait Liveness extends AttributionBase with Variables with IntraCFG with MonotoneFW[Id] {
 
     // cf. http://www.cs.colostate.edu/~mstrout/CS553/slides/lecture03.pdf
     // page 5
