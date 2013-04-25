@@ -5,12 +5,12 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.featureexpr.FeatureExprFactory
 import org.scalatest.matchers.ShouldMatchers
 import java.io.{FileWriter, File}
-import de.fosd.typechef.typesystem.CTypeSystemFrontend
+import de.fosd.typechef.typesystem.{CDeclUse, CTypeSystemFrontend}
 import de.fosd.typechef.parser.c.Id
 import de.fosd.typechef.parser.c.FunctionDef
 import de.fosd.typechef.conditional.Opt
 
-class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liveness with CFGHelper {
+class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liveness with CFGHelper with CDeclUse {
 
     private def getTmpFileName = File.createTempFile("/tmp", ".dot")
 
@@ -21,7 +21,7 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liv
         val ss = getAllSucc(a.stmt.innerStatements.head.entry, FeatureExprFactory.empty, env).map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
         setEnv(env)
         val ts = new CTypeSystemFrontend(TranslationUnit(List(Opt(FeatureExprFactory.True, a))))
-        ts.checkASTSilent
+        assert(ts.checkASTSilent, "typecheck fails!")
         val udm = ts.getUseDeclMap
         setUseDeclMap(udm)
         setFm(FeatureExprFactory.empty)
@@ -50,14 +50,14 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liv
     @Test def test_return_function() {
         runExample( """
       void foo() {
-        return f(a, b, c);
+        return foo();
     }
                     """)
     }
 
     @Test def test_standard_liveness_example() {
         runExample( """
-      void foo() {
+      int foo(int a, int b, int c) {
         a = 0;
         l1: b = a + 1;
         c = c + b;
@@ -70,7 +70,7 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liv
 
     @Test def test_standard_liveness_variability_f() {
         runExample( """
-      void foo(int a, int b, int c) {
+      int foo(int a, int b, int c) {
         a = 0;
         l1: b = a + 1;
         c = c + b;
@@ -84,7 +84,7 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liv
 
     @Test def test_standard_liveness_variability_notf() {
         runExample( """
-      void foo(int a, int b, int c) {
+      int foo(int a, int b, int c) {
         a = 0;
         l1: b = a + 1;
         c = c + b;
@@ -96,7 +96,7 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liv
 
     @Test def test_standard_liveness_variability() {
         runExample( """
-      void foo(int a, int b, int c) {
+      int foo(int a, int b, int c) {
         a = 0;
         l1: b = a + 1;
         c = c + b;

@@ -88,7 +88,7 @@ trait Liveness extends AttributionBase with IntraCFG with MonotoneFW[Id] {
             case NArySubExpr(_, ex) => uses(ex)
             case ConditionalExpr(condition, _, _) => uses(condition)
             case ExprStatement(expr) => uses(expr)
-            case AssignExpr(target, op, source) => uses(source) ++ uses(target)
+            case AssignExpr(target, op, source) => uses(source) ++ (if (op == "=") Set() else uses(target))
             case Opt(_, entry) => uses(entry)
             case _ => Set()
         }
@@ -124,12 +124,15 @@ trait Liveness extends AttributionBase with IntraCFG with MonotoneFW[Id] {
                 var res = out(t)
                 for ((k, v) <- defines)
                     for (d <- v)
-                        for (nd <- udm.get(d))
-                            res = diff(res, Set(nd))
+                        if (udm.containsKey(d))
+                            for (nd <- udm.get(d))
+                                res = diff(res, Set(nd))
                 for ((k, v) <- uses)
                     for (u <- v)
-                        for (ud <- udm.get(u))
-                            res = join(res, k, Set(ud))
+                        if (udm.containsKey(u))
+                            for (ud <- udm.get(u))
+                                res = join(res, k, Set(ud))
+
 
                 res
             }
