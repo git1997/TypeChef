@@ -6,8 +6,6 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory
 import org.scalatest.matchers.ShouldMatchers
 import java.io.{FileWriter, File}
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeSystemFrontend}
-import de.fosd.typechef.parser.c.Id
-import de.fosd.typechef.parser.c.FunctionDef
 import de.fosd.typechef.conditional.Opt
 
 class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with CFGHelper with CDeclUse {
@@ -19,13 +17,11 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with CFG
 
         val env = CASTEnv.createASTEnv(a)
         val ss = getAllSucc(a.stmt.innerStatements.head.entry, FeatureExprFactory.empty, env).map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
-        val lv = new Liveness()
-        lv.setEnv(env)
+
         val ts = new CTypeSystemFrontend(TranslationUnit(List(Opt(FeatureExprFactory.True, a))))
         assert(ts.checkASTSilent, "typecheck fails!")
         val udm = ts.getUseDeclMap
-        lv.setUseDeclMap(udm)
-        lv.setFm(FeatureExprFactory.empty)
+        val lv = new Liveness(env, udm, FeatureExprFactory.empty)
 
         for (s <- ss)
             println(PrettyPrinter.print(s) + "  uses: " + lv.gen(s, env) + "   defines: " + lv.kill(s, env) +
@@ -35,19 +31,19 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with CFG
 
     private def runDefinesExample(code: String) = {
         val a = parseStmt(code)
-        val lv = new Liveness()
+        val lv = new Liveness(null, null, null)
         lv.kill(a, CASTEnv.createASTEnv(a))
     }
 
     private def runUsesExample(code: String) = {
         val a = parseStmt(code)
-        val lv = new Liveness()
+        val lv = new Liveness(null, null, null)
         lv.gen(a, CASTEnv.createASTEnv(a))
     }
 
     private def runDeclaresExample(code: String) = {
         val a = parseDecl(code)
-        val lv = new Liveness()
+        val lv = new Liveness(null, null, null)
         lv.declaresVar(a, CASTEnv.createASTEnv(a))
     }
 

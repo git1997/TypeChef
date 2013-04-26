@@ -3,6 +3,7 @@ package de.fosd.typechef.crewrite
 import org.kiama.attribution.AttributionBase
 
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.UseDeclMap
 import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExpr}
 
 // this trait provides standard routines of the monotone framework
@@ -11,34 +12,15 @@ import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExpr}
 // in contrast to the original idea this implementation
 // is variability-aware; for more information about monotone frameworks
 // see "Principles of Program Analysis" by (Nielson, Nielson, Hankin)
-abstract class MonotoneFW[T] extends AttributionBase with IntraCFG {
+abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: FeatureModel) extends AttributionBase with IntraCFG {
 
     // since C allows variable shadowing we need to track variable usages
     // to their corresponding declarations
-    type UseDeclMap = java.util.IdentityHashMap[Id, List[Id]]
+
+    protected def id2SetT(i: Id): Set[T]
 
     protected val entry_cache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
     protected val exit_cache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
-    protected var env: ASTEnv = null
-    protected var udm: UseDeclMap = null
-    protected var fm: FeatureModel = null
-
-    def setEnv(newenv: ASTEnv) {
-        env = newenv
-    }
-
-    def setUseDeclMap(newudm: UseDeclMap) {
-        udm = newudm
-    }
-
-    def setFm(newfm: FeatureModel) {
-        fm = newfm
-    }
-
-    // trait members cannot be abstract; therefore, we enforce
-    // overriding of id2SetT when writing an own analysis
-    // and using explodeIdUse
-    protected def id2SetT(i: Id): Set[T]
 
     def gen(a: AST, env: ASTEnv): Map[FeatureExpr, Set[T]]
     def kill(a: AST, env: ASTEnv): Map[FeatureExpr, Set[T]]

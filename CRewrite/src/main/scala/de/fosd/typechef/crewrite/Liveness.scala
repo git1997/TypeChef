@@ -2,6 +2,7 @@ package de.fosd.typechef.crewrite
 
 import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.UseDeclMap
 
 import de.fosd.typechef.conditional.Opt
 
@@ -15,7 +16,7 @@ class IdentityHashMapCache[A] {
     }
 }
 
-class Liveness extends MonotoneFW[Id] with IntraCFG  {
+class Liveness(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneFW[Id](env, udm, fm) with IntraCFG  {
 
     // add annotation to elements of a Set[Id]
     // used for uses, defines, and declares
