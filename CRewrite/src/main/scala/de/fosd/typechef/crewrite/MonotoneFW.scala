@@ -22,8 +22,26 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
     protected val entry_cache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
     protected val exit_cache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
 
-    def gen(a: AST, env: ASTEnv): Map[FeatureExpr, Set[T]]
-    def kill(a: AST, env: ASTEnv): Map[FeatureExpr, Set[T]]
+    // add annotation to elements of a Set[Id]
+    // used for uses, defines, and declares
+    protected def addAnnotation2ResultSet(in: Set[Id]): Map[FeatureExpr, Set[Id]] = {
+        var res = Map[FeatureExpr, Set[Id]]()
+
+        for (r <- in) {
+            val rfexp = env.featureExpr(r)
+
+            val key = res.find(_._1 equivalentTo rfexp)
+            key match {
+                case None => res = res.+((rfexp, Set(r)))
+                case Some((k, v)) => res = res.+((k, v ++ Set(r)))
+            }
+        }
+
+        res
+    }
+
+    def gen(a: AST): Map[FeatureExpr, Set[T]]
+    def kill(a: AST): Map[FeatureExpr, Set[T]]
 
     // while monotone framework usually works on Sets
     // we use maps here for efficiency reasons:
@@ -61,8 +79,8 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case FunctionDef(_, _, _, _) => Map()
             case t => {
-                val g = gen(t, env)
-                val k = kill(t, env)
+                val g = gen(t)
+                val k = kill(t)
 
                 var res = exit(t)
                 for ((_, v) <- k)

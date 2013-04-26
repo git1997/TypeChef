@@ -24,27 +24,27 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with CFG
         val lv = new Liveness(env, udm, FeatureExprFactory.empty)
 
         for (s <- ss)
-            println(PrettyPrinter.print(s) + "  uses: " + lv.gen(s, env) + "   defines: " + lv.kill(s, env) +
+            println(PrettyPrinter.print(s) + "  uses: " + lv.gen(s) + "   defines: " + lv.kill(s) +
                     "  in: " + lv.entry(s) + "   out: " + lv.exit(s))
         println("succs: " + new DotGraph(new FileWriter(getTmpFileName)).writeMethodGraph(getAllSucc(a, FeatureExprFactory.empty, env), env, Map()))
     }
 
     private def runDefinesExample(code: String) = {
         val a = parseStmt(code)
-        val lv = new Liveness(null, null, null)
-        lv.kill(a, CASTEnv.createASTEnv(a))
+        val lv = new Liveness(CASTEnv.createASTEnv(a), null, null)
+        lv.kill(a)
     }
 
     private def runUsesExample(code: String) = {
         val a = parseStmt(code)
-        val lv = new Liveness(null, null, null)
-        lv.gen(a, CASTEnv.createASTEnv(a))
+        val lv = new Liveness(CASTEnv.createASTEnv(a), null, null)
+        lv.gen(a)
     }
 
     private def runDeclaresExample(code: String) = {
         val a = parseDecl(code)
-        val lv = new Liveness(null, null, null)
-        lv.declaresVar(a, CASTEnv.createASTEnv(a))
+        val lv = new Liveness(CASTEnv.createASTEnv(a), null, null)
+        lv.declaresVar(a)
     }
 
     @Test def test_return_function() {

@@ -1,9 +1,9 @@
 package de.fosd.typechef.crewrite
 
-import de.fosd.typechef.parser.c._
-
 import org.kiama.rewriting.Rewriter._
-import de.fosd.typechef.parser.c.Id
+
+import de.fosd.typechef.parser.c._
+import de.fosd.typechef.typesystem.UseDeclMap
 import de.fosd.typechef.featureexpr.FeatureModel
 
 // implements a simple analysis of double-free
@@ -18,7 +18,7 @@ import de.fosd.typechef.featureexpr.FeatureModel
 //     is a conservative analysis for program flow
 //     so the analysis will likely produce a lot
 //     of false positives
-trait DoubleFree extends IntraCFG with CFGHelper with ASTNavigation {
+class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneFW[Id](env, udm, fm) with IntraCFG with CFGHelper with ASTNavigation {
 
     // determine whether a given AST element a
     // contains a memory allocation call (malloc, calloc, or realloc)
@@ -37,9 +37,13 @@ trait DoubleFree extends IntraCFG with CFGHelper with ASTNavigation {
         res
     }
 
+    def id2SetT(i: Id) = Set(i)
+
+    def kill(a: AST, env: ASTEnv) = Map()
+
     // returns a list of Ids with names of variables that point to
     // dynamically created memory regions (malloc, calloc, realloc)
-    def getHeapPointers(a: AST): Set[Id] = {
+    def gen(a: AST, env: ASTEnv): Set[Id] = {
         var res = Set[Id]()
         val mempointers = manytd(query {
             case InitDeclaratorI(declarator, _, Some(init)) => {
@@ -86,7 +90,7 @@ trait DoubleFree extends IntraCFG with CFGHelper with ASTNavigation {
         val env = CASTEnv.createASTEnv(f)
         val wlist = getAllSucc(f, fm, env).map(_._1)
         for (s <- wlist) {
-            val hp = getHeapPointers(s)
+            val hp = gen(s, env)
             for (hpelem <- hp)
                 mres = mres.+((hpelem, List()))
 

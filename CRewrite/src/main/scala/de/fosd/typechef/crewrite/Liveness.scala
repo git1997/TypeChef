@@ -18,24 +18,6 @@ class IdentityHashMapCache[A] {
 
 class Liveness(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneFW[Id](env, udm, fm) with IntraCFG  {
 
-    // add annotation to elements of a Set[Id]
-    // used for uses, defines, and declares
-    private def addAnnotation2ResultSet(in: Set[Id], env: ASTEnv): Map[FeatureExpr, Set[Id]] = {
-        var res = Map[FeatureExpr, Set[Id]]()
-
-        for (r <- in) {
-            val rfexp = env.featureExpr(r)
-
-            val key = res.find(_._1 equivalentTo rfexp)
-            key match {
-                case None => res = res.+((rfexp, Set(r)))
-                case Some((k, v)) => res = res.+((k, v ++ Set(r)))
-            }
-        }
-
-        res
-    }
-
     // returns all declared Ids independent of their annotation
     private val declares: PartialFunction[Any, Set[Id]] = {
         case DeclarationStatement(decl) => declares(decl)
@@ -96,12 +78,12 @@ class Liveness(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneF
     }
 
     // returns all declared variables with their annotation
-    val declaresVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, e) => addAnnotation2ResultSet(declares(a), e)
+    val declaresVar: PartialFunction[(Any), Map[FeatureExpr, Set[Id]]] = {
+        case a => addAnnotation2ResultSet(declares(a))
     }
 
-    def gen(a: AST, env: ASTEnv): Map[FeatureExpr, Set[Id]] = { addAnnotation2ResultSet(uses(a), env) }
-    def kill(a: AST, env: ASTEnv): Map[FeatureExpr, Set[Id]] = { addAnnotation2ResultSet(defines(a), env) }
+    def gen(a: AST): Map[FeatureExpr, Set[Id]] = { addAnnotation2ResultSet(uses(a)) }
+    def kill(a: AST): Map[FeatureExpr, Set[Id]] = { addAnnotation2ResultSet(defines(a)) }
 
     // cf. http://www.cs.colostate.edu/~mstrout/CS553/slides/lecture03.pdf
     // page 5
