@@ -85,16 +85,20 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
                 var res = exit(t)
                 for ((_, v) <- k)
                     for (d <- v)
-                        if (udm.containsKey(d))
+                        if (udm != null && udm.containsKey(d))
                             for (nd <- udm.get(d))
                                 res = diff(res, id2SetT(nd))
+                        else
+                            res = diff(res, Set(d))
+
                 for ((fexp, v) <- g)
                     for (u <- v)
-                        if (udm.containsKey(u))
+                        if (udm != null && udm.containsKey(u))
                             for (ud <- udm.get(u))
                                 res = join(res, fexp, id2SetT(ud))
-
-
+                        else {
+                            res = join(res, fexp, Set(u))
+                        }
                 res
             }
         }

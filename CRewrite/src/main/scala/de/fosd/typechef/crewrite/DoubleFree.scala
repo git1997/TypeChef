@@ -39,11 +39,9 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
 
     def id2SetT(i: Id) = Set(i)
 
-    def kill(a: AST, env: ASTEnv) = Map()
-
     // returns a list of Ids with names of variables that point to
     // dynamically created memory regions (malloc, calloc, realloc)
-    def gen(a: AST, env: ASTEnv): Set[Id] = {
+    def gen(a: AST) = {
         var res = Set[Id]()
         val mempointers = manytd(query {
             case InitDeclaratorI(declarator, _, Some(init)) => {
@@ -55,14 +53,14 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
         })
 
         mempointers(a)
-        res
+        addAnnotation2ResultSet(res)
     }
 
     // returns a list of Ids with names of variables that a freed
     // by call to free
     // we ensure (see comment) that call to free belongs to system free function
     // (see /usr/include/stdlib.h)
-    def getFreedPointers(a: AST): Set[Id] = {
+    def kill(a: AST) = {
         var res = Set[Id]()
         val freedpointers = manytd(query {
             case PostfixExpr(i@Id("free"), FunctionCall(l)) => {
@@ -74,37 +72,6 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
         })
 
         freedpointers(a)
-        res
-    }
-
-    // returns true if f is free of double-free errors; returns false otherwise
-    def check(f: CompoundStatement, fm: FeatureModel): List[AnalysisError] = {
-        var res = List[AnalysisError]()
-
-        // maintain a map of dynamically created memory locations and their free calls.
-        var mres = Map[Id, List[Id]]()
-
-        // basic idea is to get all successor elements of f
-        // iterate over the list, fetch pointers of malloc, ... calls
-        // and check subsequent control flow statements for double free
-        val env = CASTEnv.createASTEnv(f)
-        val wlist = getAllSucc(f, fm, env).map(_._1)
-        for (s <- wlist) {
-            val hp = gen(s, env)
-            for (hpelem <- hp)
-                mres = mres.+((hpelem, List()))
-
-            val fp = getFreedPointers(s)
-            for (fpelem <- fp) {
-                if (mres.isDefinedAt(fpelem)) {
-                    val clist = fpelem::mres.get(fpelem).get
-                    mres = mres.+((fpelem, clist))
-                    if (clist.size > 1)
-                        res ::= new AnalysisError(env.featureExpr(fpelem), "Potential double free error!", clist.head)
-                }
-            }
-        }
-
-        res
+        addAnnotation2ResultSet(res)
     }
 }
