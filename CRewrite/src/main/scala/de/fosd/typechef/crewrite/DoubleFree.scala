@@ -41,7 +41,7 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
 
     // returns a list of Ids with names of variables that point to
     // dynamically created memory regions (malloc, calloc, realloc)
-    def gen(a: AST) = {
+    def kill(a: AST) = {
         var res = Set[Id]()
         val mempointers = manytd(query {
             case InitDeclaratorI(declarator, _, Some(init)) => {
@@ -60,7 +60,7 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
     // by call to free
     // we ensure (see comment) that call to free belongs to system free function
     // (see /usr/include/stdlib.h)
-    def kill(a: AST) = {
+    def gen(a: AST) = {
         var res = Set[Id]()
         val freedpointers = manytd(query {
             case PostfixExpr(i@Id("free"), FunctionCall(l)) => {
