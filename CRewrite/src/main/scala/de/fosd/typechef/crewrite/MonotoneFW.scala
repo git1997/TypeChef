@@ -104,10 +104,25 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
         }
     }
 
-    private val analysis_exit: AST => Map[T, FeatureExpr] =
+    protected val analysis_exit: AST => Map[T, FeatureExpr]
+
+    protected val analysis_exit_backward: AST => Map[T, FeatureExpr] =
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case e => {
                 val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
+                var res = Map[T, FeatureExpr]()
+                for (s <- ss) {
+                    for ((r, f) <- entry(s.entry))
+                        res = join(res, f and s.feature, Set(r))
+                }
+                res
+            }
+        }
+
+    protected val analysis_exit_forward: AST => Map[T, FeatureExpr] =
+        circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
+            case e => {
+                val ss = pred(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
                 var res = Map[T, FeatureExpr]()
                 for (s <- ss) {
                     for ((r, f) <- entry(s.entry))
