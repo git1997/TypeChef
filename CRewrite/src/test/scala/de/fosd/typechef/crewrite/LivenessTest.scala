@@ -10,7 +10,7 @@ import de.fosd.typechef.parser.c.Id
 import de.fosd.typechef.parser.c.FunctionDef
 import de.fosd.typechef.conditional.Opt
 
-class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liveness with CFGHelper with CDeclUse {
+class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with CFGHelper with CDeclUse {
 
     private def getTmpFileName = File.createTempFile("/tmp", ".dot")
 
@@ -19,32 +19,36 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liv
 
         val env = CASTEnv.createASTEnv(a)
         val ss = getAllSucc(a.stmt.innerStatements.head.entry, FeatureExprFactory.empty, env).map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
-        setEnv(env)
+        val lv = new Liveness()
+        lv.setEnv(env)
         val ts = new CTypeSystemFrontend(TranslationUnit(List(Opt(FeatureExprFactory.True, a))))
         assert(ts.checkASTSilent, "typecheck fails!")
         val udm = ts.getUseDeclMap
-        setUseDeclMap(udm)
-        setFm(FeatureExprFactory.empty)
+        lv.setUseDeclMap(udm)
+        lv.setFm(FeatureExprFactory.empty)
 
         for (s <- ss)
-            println(PrettyPrinter.print(s) + "  uses: " + usesVar(s, env) + "   defines: " + definesVar(s, env) +
-                    "  in: " + in(s) + "   out: " + out(s))
+            println(PrettyPrinter.print(s) + "  uses: " + lv.gen(s, env) + "   defines: " + lv.kill(s, env) +
+                    "  in: " + lv.entry(s) + "   out: " + lv.exit(s))
         println("succs: " + new DotGraph(new FileWriter(getTmpFileName)).writeMethodGraph(getAllSucc(a, FeatureExprFactory.empty, env), env, Map()))
     }
 
     private def runDefinesExample(code: String) = {
         val a = parseStmt(code)
-        definesVar(a, CASTEnv.createASTEnv(a))
+        val lv = new Liveness()
+        lv.kill(a, CASTEnv.createASTEnv(a))
     }
 
     private def runUsesExample(code: String) = {
         val a = parseStmt(code)
-        usesVar(a, CASTEnv.createASTEnv(a))
+        val lv = new Liveness()
+        lv.gen(a, CASTEnv.createASTEnv(a))
     }
 
     private def runDeclaresExample(code: String) = {
         val a = parseDecl(code)
-        declaresVar(a, CASTEnv.createASTEnv(a))
+        val lv = new Liveness()
+        lv.declaresVar(a, CASTEnv.createASTEnv(a))
     }
 
     @Test def test_return_function() {
@@ -375,7 +379,7 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with Liv
         runExample( """
       static void make_hash(const char *key, unsigned *start, unsigned *decrement, const int hash_prime) {
       unsigned long hash_num = key[0];
-      int len = strlen(key);
+      int len = 1;
       int i;
 
       for (i = 1; i < len; i++) {

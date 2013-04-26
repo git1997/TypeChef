@@ -4,8 +4,7 @@ import de.fosd.typechef.parser.c._
 
 import org.kiama.rewriting.Rewriter._
 import de.fosd.typechef.parser.c.Id
-import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel}
-import de.fosd.typechef.conditional.Opt
+import de.fosd.typechef.featureexpr.FeatureModel
 
 // implements a simple analysis of double-free
 // freeing memory multiple times [dblfree]

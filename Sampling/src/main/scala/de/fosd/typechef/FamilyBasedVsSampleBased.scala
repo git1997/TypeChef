@@ -31,7 +31,9 @@ import scala.Some
  * Time: 3:45 PM
  *
  */
-object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation with Liveness with CFGHelper {
+object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation with CFGHelper {
+    type UseDeclMap = java.util.IdentityHashMap[Id, List[Id]]
+
     type Task = Pair[String, List[SimpleConfiguration]]
 
     /** Maps SingleFeatureExpr Objects to IDs (IDs only known/used in this file) */
@@ -582,13 +584,14 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
         if (f.stmt.innerStatements.isEmpty) return
 
         val env = CASTEnv.createASTEnv(f)
-        setEnv(env)
+        val lv = new Liveness()
+        lv.setEnv(env)
         val ss = getAllSucc(f.stmt.innerStatements.head.entry, FeatureExprFactory.empty, env)
-        setUseDeclMap(udm)
-        setFm(fm)
+        lv.setUseDeclMap(udm)
+        lv.setFm(fm)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
-        for (s <- nss) in(s)
+        for (s <- nss) lv.entry(s)
     }
 
     def analyzeTasks(tasks: List[Task], tunit: TranslationUnit, fm: FeatureModel, opt: FamilyBasedVsSampleBasedOptions,

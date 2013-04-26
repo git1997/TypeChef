@@ -1,5 +1,7 @@
 package de.fosd.typechef.crewrite
 
+import org.kiama.attribution.AttributionBase
+
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExpr}
 
@@ -9,14 +11,14 @@ import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExpr}
 // in contrast to the original idea this implementation
 // is variability-aware; for more information about monotone frameworks
 // see "Principles of Program Analysis" by (Nielson, Nielson, Hankin)
-trait MonotoneFW[T] {
+abstract class MonotoneFW[T] extends AttributionBase with IntraCFG {
 
     // since C allows variable shadowing we need to track variable usages
     // to their corresponding declarations
     type UseDeclMap = java.util.IdentityHashMap[Id, List[Id]]
 
-    protected val incache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
-    protected val outcache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
+    protected val entry_cache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
+    protected val exit_cache = new IdentityHashMapCache[Map[T, FeatureExpr]]()
     protected var env: ASTEnv = null
     protected var udm: UseDeclMap = null
     protected var fm: FeatureModel = null
@@ -36,10 +38,10 @@ trait MonotoneFW[T] {
     // trait members cannot be abstract; therefore, we enforce
     // overriding of id2SetT when writing an own analysis
     // and using explodeIdUse
-    protected def id2SetT(i: Id): Set[T] = {
-        assert(assertion = false, "You have to override is2SetT when using it")
-        Set()
-    }
+    protected def id2SetT(i: Id): Set[T]
+
+    def gen(a: AST, env: ASTEnv): Map[FeatureExpr, Set[T]]
+    def kill(a: AST, env: ASTEnv): Map[FeatureExpr, Set[T]]
 
     // while monotone framework usually works on Sets
     // we use maps here for efficiency reasons:
@@ -55,14 +57,14 @@ trait MonotoneFW[T] {
     //      expressions such as "a or (not a) => true".
     type ResultMap = Map[T, FeatureExpr]
 
-    protected def diff(map: ResultMap, d: Set[T]) = {
+    private def diff(map: ResultMap, d: Set[T]) = {
         var curmap = map
         for (e <- d)
             curmap = curmap.-(e)
         curmap
     }
 
-    protected def join(map: ResultMap, fexp: FeatureExpr, j: Set[T]) = {
+    private def join(map: ResultMap, fexp: FeatureExpr, j: Set[T]) = {
         var curmap = map
         for (e <- j) {
             curmap.get(e) match {
@@ -72,4 +74,68 @@ trait MonotoneFW[T] {
         }
         curmap
     }
+
+    private val analysis_entry: AST => Map[T, FeatureExpr] = {
+        circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
+            case FunctionDef(_, _, _, _) => Map()
+            case t => {
+                val g = gen(t, env)
+                val k = kill(t, env)
+
+                var res = exit(t)
+                for ((_, v) <- k)
+                    for (d <- v)
+                        if (udm.containsKey(d))
+                            for (nd <- udm.get(d))
+                                res = diff(res, id2SetT(nd))
+                for ((fexp, v) <- g)
+                    for (u <- v)
+                        if (udm.containsKey(u))
+                            for (ud <- udm.get(u))
+                                res = join(res, fexp, id2SetT(ud))
+
+
+                res
+            }
+        }
+    }
+
+    private val analysis_exit: AST => Map[T, FeatureExpr] =
+        circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
+            case e => {
+                val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
+                var res = Map[T, FeatureExpr]()
+                for (s <- ss) {
+                    for ((r, f) <- entry(s.entry))
+                        res = join(res, f and s.feature, Set(r))
+                }
+                res
+            }
+        }
+
+    def exit(a: AST) = {
+        exit_cache.lookup(a) match {
+            case Some(v) => v
+            case None => {
+                val r = analysis_exit(a)
+                exit_cache.update(a, r)
+                r
+            }
+        }
+    }
+
+    def out(a: AST) = exit(a)
+
+    def entry(a: AST) = {
+        entry_cache.lookup(a) match {
+            case Some(v) => v
+            case None => {
+                val r = analysis_entry(a)
+                entry_cache.update(a, r)
+                r
+            }
+        }
+    }
+
+    def in(a: AST) = entry(a)
 }

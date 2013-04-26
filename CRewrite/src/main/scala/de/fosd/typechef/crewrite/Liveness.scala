@@ -2,7 +2,7 @@ package de.fosd.typechef.crewrite
 
 import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.parser.c._
-import org.kiama.attribution.AttributionBase
+
 import de.fosd.typechef.conditional.Opt
 
 class IdentityHashMapCache[A] {
@@ -15,7 +15,7 @@ class IdentityHashMapCache[A] {
     }
 }
 
-trait Liveness extends AttributionBase with IntraCFG with MonotoneFW[Id] {
+class Liveness extends MonotoneFW[Id] with IntraCFG  {
 
     // add annotation to elements of a Set[Id]
     // used for uses, defines, and declares
@@ -99,80 +99,13 @@ trait Liveness extends AttributionBase with IntraCFG with MonotoneFW[Id] {
         case (a, e) => addAnnotation2ResultSet(declares(a), e)
     }
 
-    // returns all defined variables with their annotation
-    val definesVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, e) => addAnnotation2ResultSet(defines(a), e)
-    }
-
-    // returns all used variables with their annotation
-    val usesVar: PartialFunction[(Any, ASTEnv), Map[FeatureExpr, Set[Id]]] = {
-        case (a, e) => addAnnotation2ResultSet(uses(a), e)
-    }
+    def gen(a: AST, env: ASTEnv): Map[FeatureExpr, Set[Id]] = { addAnnotation2ResultSet(uses(a), env) }
+    def kill(a: AST, env: ASTEnv): Map[FeatureExpr, Set[Id]] = { addAnnotation2ResultSet(defines(a), env) }
 
     // cf. http://www.cs.colostate.edu/~mstrout/CS553/slides/lecture03.pdf
     // page 5
     //  in(n) = uses(n) + (out(n) - defines(n))
     // out(n) = for s in succ(n) r = r + in(s); r
-
-    private val inrec: AST => Map[Id, FeatureExpr] = {
-        circular[AST, Map[Id, FeatureExpr]](Map[Id, FeatureExpr]()) {
-            case FunctionDef(_, _, _, _) => Map()
-            case t => {
-                val uses = usesVar(t, env)
-                val defines = definesVar(t, env)
-
-                var res = out(t)
-                for ((k, v) <- defines)
-                    for (d <- v)
-                        if (udm.containsKey(d))
-                            for (nd <- udm.get(d))
-                                res = diff(res, Set(nd))
-                for ((k, v) <- uses)
-                    for (u <- v)
-                        if (udm.containsKey(u))
-                            for (ud <- udm.get(u))
-                                res = join(res, k, Set(ud))
-
-
-                res
-            }
-        }
-    }
-
-    private val outrec: AST => Map[Id, FeatureExpr] =
-        circular[AST, Map[Id, FeatureExpr]](Map[Id, FeatureExpr]()) {
-            case e => {
-                val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
-                var res = Map[Id, FeatureExpr]()
-                for (s <- ss) {
-                    for ((r, f) <- in(s.entry))
-                        res = join(res, f and s.feature, Set(r))
-                }
-                res
-            }
-        }
-
-    def out(a: AST) = {
-        outcache.lookup(a) match {
-            case Some(v) => v
-            case None => {
-                val r = outrec(a)
-                outcache.update(a, r)
-                r
-            }
-        }
-    }
-
-    def in(a: AST) = {
-        incache.lookup(a) match {
-            case Some(v) => v
-            case None => {
-                val r = inrec(a)
-                incache.update(a, r)
-                r
-            }
-        }
-    }
 
     override def id2SetT(i: Id) = Set(i)
 }
