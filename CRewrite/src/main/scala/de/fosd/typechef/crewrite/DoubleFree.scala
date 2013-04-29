@@ -63,19 +63,48 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
     // (see /usr/include/stdlib.h)
     // using the terminology of liveness we return pointers that have that are in use
     def gen(a: AST) = {
+
         var res = Set[Id]()
+
+        // add a free target independent of & and *
+        def addFreeTarget(e: Expr) {
+            // free(a[b])
+            val ap = filterAllASTElems[ArrayAccess](e)
+            if (!ap.isEmpty) {
+                for (ape <- filterAllASTElems[PostfixExpr](e)) {
+                    ape match {
+                        case PostfixExpr(i@Id(_), ArrayAccess(_)) => res += i
+                        case _ =>
+                    }
+                }
+
+                return
+            }
+
+            // free(a->b)
+            val sp = filterAllASTElems[PointerPostfixSuffix](e)
+            if (!sp.isEmpty) {
+                for (spe <- filterAllASTElems[Id](sp.reverse.head))
+                    res += spe
+
+                return
+            }
+
+            // free(a)
+            val fp = filterAllASTElems[Id](e)
+
+            for (ni <- fp)
+                res += ni
+        }
+
+
         val freedpointers = manytd(query {
             // usually dynamically allocated memory is freed with library function free
             case PostfixExpr(i@Id("free"), FunctionCall(l)) => {
                 // if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h"))
 
                 for (e <- l.exprs) {
-                    // free(a->b)
-                    val sp = filterAllASTElems[PointerPostfixSuffix](e)
-                    val fp = if (sp.isEmpty) filterAllASTElems[Id](e) else filterAllASTElems[Id](sp.reverse.head)
-
-                    for (ni <- fp)
-                        res += ni
+                    addFreeTarget(e.entry)
                 }
             }
             // realloc(*ptr, size) is used for reallocation of memory
