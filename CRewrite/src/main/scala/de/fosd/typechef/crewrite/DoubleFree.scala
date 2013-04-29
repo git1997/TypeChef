@@ -41,6 +41,7 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
 
     // returns a list of Ids with names of variables that point to
     // dynamically created memory regions (malloc, calloc, realloc)
+    // using the terminology of liveness we return pointers of newly allocated memory regions
     def kill(a: AST) = {
         var res = Set[Id]()
         val mempointers = manytd(query {
@@ -57,17 +58,49 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
     }
 
     // returns a list of Ids with names of variables that a freed
-    // by call to free
+    // by call to free or realloc
     // we ensure (see comment) that call to free belongs to system free function
     // (see /usr/include/stdlib.h)
+    // using the terminology of liveness we return pointers that have that are in use
     def gen(a: AST) = {
         var res = Set[Id]()
         val freedpointers = manytd(query {
+            // usually dynamically allocated memory is freed with library function free
             case PostfixExpr(i@Id("free"), FunctionCall(l)) => {
                 // if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h"))
                 for (e <- l.exprs)
                     for (ni <- filterAllASTElems[Id](e))
                         res += ni
+            }
+            // realloc(*ptr, size) is used for reallocation of memory
+            case PostfixExpr(i@Id("realloc"), FunctionCall(l)) => {
+                // realloc has two arguments but more than two elements may be passed to
+                // the function. this is the case when elements form alternative groups, such as,
+                // realloc(#ifdef A aptr #else naptr endif, ...)
+                // so we check from the start whether parameter list elements
+                // form alternative groups. if so we look for Ids in each
+                // of the alternative elements. if not we stop, because then we encounter
+                // a size element.
+                var actx = List(l.exprs.head.feature)
+                var finished = false
+
+                for (ni <- filterAllASTElems[Id](l.exprs.head.entry))
+                    res += ni
+
+                for (ce <- l.exprs.tail) {
+                    if (actx.reduce(_ or _) isTautology(fm))
+                        finished = true
+
+                    if (!finished && actx.forall(_ and ce.feature isContradiction(fm))) {
+                        for (ni <- filterAllASTElems[Id](ce.entry))
+                            res += ni
+                        actx ::= ce.feature
+                    } else {
+                        finished = true
+                    }
+
+                }
+
             }
         })
 

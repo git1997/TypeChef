@@ -11,17 +11,18 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
     private def getDynAllocatedMem(code: String) = {
         val a = parseCompoundStmt(code)
         val df = new DoubleFree(CASTEnv.createASTEnv(a), null, null)
-        df.gen(a)
+        df.kill(a)
     }
 
     // check freed pointers
     private def getFreedMem(code: String) = {
         val a = parseCompoundStmt(code)
         val df = new DoubleFree(CASTEnv.createASTEnv(a), null, null)
-        df.kill(a)
+        df.gen(a)
     }
 
-    // check double free pointers
+    // intraprocedural check of double freeing pointers
+    // we check whether a freed memory cell is freed again
     private def hasDoubleFree(code: String): Boolean = {
         val f = parseFunctionDef(code)
         var res = false
@@ -32,10 +33,11 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
         for (s <- nss) {
-            val g = df.gen(s)
-            val pd = df.out(s)
 
-            for ((i, _) <- pd)
+            val g = df.gen(s)
+            val out = df.out(s)
+
+            for ((i, _) <- out)
                 for ((_, j) <- g)
                     if (j.contains(i))
                         res = true
@@ -44,7 +46,7 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
         res
     }
 
-    @Test def test_pointers() {
+    @Test def test_allocation() {
         getDynAllocatedMem("{ int *a = malloc(2); }") should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
         getDynAllocatedMem("{ void *a,*b = malloc(2); }") should be(Map(FeatureExprFactory.True -> Set(Id("b"))))
         // tricky example: a and b are aliases for each other
@@ -58,10 +60,68 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
               |};
               |struct expr *e = malloc(sizeof(*e));
               |}""".stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("e"))))
+        getDynAllocatedMem("{ int *a = realloc(a, 2); }") should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
     }
 
-    @Test def test_free_simple() {
+    @Test def test_free() {
+        getFreedMem("{ free(a); }") should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
+        getFreedMem(
+            """
+            {
+              #ifdef A
+              free(a);
+              #endif
+            }
+            """.stripMargin) should be(Map(fa -> Set(Id("a"))))
+        getFreedMem(
+            """
+            {
+              free(
+              #ifdef A
+              a
+              #else
+              b
+              #endif
+              );
+            }
+            """.stripMargin) should be(Map(fa -> Set(Id("a")), fa.not() -> Set(Id("b"))))
+        getFreedMem(
+            """
+            {
+              realloc(a, 2);
+            }
+            """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
+        getFreedMem(
+            """
+            {
+              realloc(
+            #ifdef A
+              a
+            #else
+              b
+            #endif
+              , 2);
+            }
+            """.stripMargin) should be(Map(fa -> Set(Id("a")), fa.not() -> Set(Id("b"))))
+        getFreedMem(
+            """
+            {
+              realloc(
+              a,
+            #ifdef A
+              sizeof(struct g)
+            #else
+              sizeof(struct g2)
+            #endif
+            );
+            }
+            """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
+
+    }
+
+    @Test def test_double_free_simple() {
         hasDoubleFree("""void foo() {
+                 int *a = malloc(2);
                  free(a);
                  #ifdef A
                  free(a);
@@ -72,6 +132,46 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
               void foo() {
               int *a = malloc(2);
               free(a);
+              a = malloc(2);
+              free(a);
+              }
+            """.stripMargin) should be(false)
+        hasDoubleFree(
+            """
+              void foo() {
+              int *a = malloc(2);
+              free(a);
+              #ifdef A
+              a = malloc(2);
+              #endif
+              free(a);
+              }
+            """.stripMargin) should be(true)
+        hasDoubleFree(
+            """
+              void foo() {
+              int *a = malloc(2);
+              free(a);
+              }
+            """.stripMargin) should be(false)
+        hasDoubleFree(
+            """
+              void foo() {
+              int *a = malloc(2);
+              int *b = realloc(a, 3);
+              free(a);
+              }
+            """.stripMargin) should be(true)
+        hasDoubleFree(
+            """
+              void foo() {
+              int *a = malloc(2);
+              #ifdef A
+              int *b = realloc(a, 3);
+              #else
+              free(a);
+              #endif
+              free(b);
               }
             """.stripMargin) should be(false)
         // take from: https://www.securecoding.cert.org/confluence/display/seccode/MEM31-C.+Free+dynamically+allocated+memory+exactly+once
