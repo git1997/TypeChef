@@ -68,9 +68,15 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
             // usually dynamically allocated memory is freed with library function free
             case PostfixExpr(i@Id("free"), FunctionCall(l)) => {
                 // if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h"))
-                for (e <- l.exprs)
-                    for (ni <- filterAllASTElems[Id](e))
+
+                for (e <- l.exprs) {
+                    // free(a->b)
+                    val sp = filterAllASTElems[PointerPostfixSuffix](e)
+                    val fp = if (sp.isEmpty) filterAllASTElems[Id](e) else filterAllASTElems[Id](sp.reverse.head)
+
+                    for (ni <- fp)
                         res += ni
+                }
             }
             // realloc(*ptr, size) is used for reallocation of memory
             case PostfixExpr(i@Id("realloc"), FunctionCall(l)) => {
