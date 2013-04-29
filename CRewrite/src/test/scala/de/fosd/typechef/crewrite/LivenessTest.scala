@@ -4,13 +4,10 @@ import org.junit.Test
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.featureexpr.FeatureExprFactory
 import org.scalatest.matchers.ShouldMatchers
-import java.io.{FileWriter, File}
 import de.fosd.typechef.typesystem.{CDeclUse, CTypeSystemFrontend}
 import de.fosd.typechef.conditional.Opt
 
 class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with CFGHelper with CDeclUse {
-
-    private def getTmpFileName = File.createTempFile("/tmp", ".dot")
 
     private def runExample(code: String) {
         val a = parseFunctionDef(code)
@@ -23,10 +20,11 @@ class LivenessTest extends TestHelper with ShouldMatchers with IntraCFG with CFG
         val udm = ts.getUseDeclMap
         val lv = new Liveness(env, udm, FeatureExprFactory.empty)
 
-        for (s <- ss)
+        for (s <- ss) {
             println(PrettyPrinter.print(s) + "  uses: " + lv.gen(s) + "   defines: " + lv.kill(s) +
                     "  in: " + lv.entry(s) + "   out: " + lv.exit(s))
-        println("succs: " + new DotGraph(new FileWriter(getTmpFileName)).writeMethodGraph(getAllSucc(a, FeatureExprFactory.empty, env), env, Map()))
+        }
+
     }
 
     private def runDefinesExample(code: String) = {
