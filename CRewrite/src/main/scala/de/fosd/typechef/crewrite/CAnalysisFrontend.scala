@@ -1,11 +1,13 @@
-
 package de.fosd.typechef.crewrite
 
-import de.fosd.typechef.featureexpr._
-import de.fosd.typechef.parser.c.{FunctionDef, AST}
 import java.io.{Writer, StringWriter}
 
-class CAnalysisFrontend(tunit: AST, fm: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty) extends CFGHelper {
+import de.fosd.typechef.featureexpr._
+import de.fosd.typechef.parser.c.{TranslationUnit, FunctionDef}
+import de.fosd.typechef.typesystem._
+
+
+class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty) extends CFGHelper {
 
     def dumpCFG(writer: Writer = new StringWriter()) {
         val fdefs = filterAllASTElems[FunctionDef](tunit)
@@ -21,5 +23,46 @@ class CAnalysisFrontend(tunit: AST, fm: FeatureModel = FeatureExprFactory.defaul
 
         if (writer.isInstanceOf[StringWriter])
             println(writer.toString)
+    }
+
+    def doubleFree() {
+
+        val ts = new CTypeSystemFrontend(tunit, fm)
+        assert(ts.checkASTSilent, "typecheck fails!")
+        val env = CASTEnv.createASTEnv(tunit)
+        val udm = ts.getUseDeclMap
+
+        val fdefs = filterAllASTElems[FunctionDef](tunit)
+        val errors = fdefs.flatMap(doubleFreeFunctionDef(_, env, udm))
+
+        if (errors.isEmpty) {
+            println("No double frees found!")
+        } else {
+            println(errors)
+        }
+
+        errors.isEmpty
+    }
+
+    private def doubleFreeFunctionDef(f: FunctionDef, env: ASTEnv, udm: UseDeclMap): List[AnalysisError] = {
+        var res: List[AnalysisError] = List()
+
+        // TODO: head.entry is wrong head might be optional and part of an alternative!
+        val ss = getAllSucc(f.stmt.innerStatements.head.entry, fm, env)
+        val df = new DoubleFree(env, udm, fm)
+
+        val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
+
+        for (s <- nss) {
+            val g = df.gen(s)
+            val out = df.out(s)
+
+            for ((i, _) <- out)
+                for ((_, j) <- g)
+                    if (j.contains(i))
+                        res ::= new AnalysisError(env.featureExpr(i), "Potential double free!", i)
+        }
+
+        res
     }
 }

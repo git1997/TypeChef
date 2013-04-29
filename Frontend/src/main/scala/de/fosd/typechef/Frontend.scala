@@ -145,6 +145,12 @@ object Frontend {
                     val cf = new CAnalysisFrontend(ast.asInstanceOf[TranslationUnit], fm_ts)
                     cf.dumpCFG()
                 }
+                if (opt.doublefree) {
+                    stopWatch.start("doublefree")
+                    val df = new CAnalysisFrontend(ast.asInstanceOf[TranslationUnit], fm_ts)
+                    df.doubleFree()
+                }
+
             }
 
         }
