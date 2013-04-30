@@ -143,5 +143,5 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
         addAnnotation2ResultSet(res)
     }
 
-    override val analysis_exit = analysis_exit_backward
+    override val analysis_exit = analysis_exit_forward
 }

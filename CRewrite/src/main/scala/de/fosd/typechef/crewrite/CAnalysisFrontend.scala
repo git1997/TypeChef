@@ -28,7 +28,7 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
     def doubleFree() {
 
         val ts = new CTypeSystemFrontend(tunit, fm)
-        assert(ts.checkASTSilent, "typecheck fails!")
+        //assert(ts.checkASTSilent, "typecheck fails!")
         val env = CASTEnv.createASTEnv(tunit)
         val udm = ts.getUseDeclMap
 
@@ -58,9 +58,12 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
             val out = df.out(s)
 
             for ((i, _) <- out)
-                for ((_, j) <- g)
-                    if (j.contains(i))
-                        res ::= new AnalysisError(env.featureExpr(i), "Potential double free!", i)
+                for ((_, j) <- g) {
+                    j.find(_ == i) match {
+                        case None =>
+                        case Some(x) => res ::= new AnalysisError(env.featureExpr(x), "warning: Try to free a memory block that has been released", x)
+                    }
+                }
         }
 
         res
