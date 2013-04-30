@@ -38,7 +38,7 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         if (errors.isEmpty) {
             println("No double frees found!")
         } else {
-            println(errors)
+            println(errors.map(_.toString + "\n").reduce(_ + _))
         }
 
         errors.isEmpty

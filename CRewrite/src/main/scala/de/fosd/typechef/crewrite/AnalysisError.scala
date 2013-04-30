@@ -9,6 +9,6 @@ import de.fosd.typechef.parser.c.AST
 // pos       => actually the AST element itself; we use the position information
 //              of the AST element
 class AnalysisError(val condition: FeatureExpr, val msg: String, val pos: AST) {
-    override def toString  = " [" + condition + "] " +
-            (if (pos == null) "" else pos.getPositionFrom + "--" + pos.getPositionTo) + "\n\t" + msg
+    override def toString  = msg + " [" + condition + "] " +
+            (if (pos == null) "" else pos.getPositionFrom + "--" + pos.getPositionTo)
 }
