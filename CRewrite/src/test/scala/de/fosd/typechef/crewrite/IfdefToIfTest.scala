@@ -1,6 +1,6 @@
 package de.fosd.typechef.crewrite
 
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.kiama.rewriting.Rewriter._
 import de.fosd.typechef.featureexpr.sat._
 import de.fosd.typechef.parser.c._
@@ -82,7 +82,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
             print("\t")
         }
         val startParsingAndTypeChecking = System.currentTimeMillis()
-        val source_ast = i.fixTypeChefsFeatureExpressions(getAstFromPi(file))
+        val source_ast = i.fixTypeChefsFeatureExpressions(getAstFromPi(file.getAbsolutePath))
         //val env = createASTEnv(source_ast)
         typecheckTranslationUnit(source_ast)
         val defUseMap = getDeclUseMap
@@ -140,15 +140,19 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         newAsts.foreach(x => writeToTextFile(PrettyPrinter.print(x._1), x._2 ++ "_tmp"))*/
     }
 
-    private def getAstFromPi(fileToAnalyse: File): TranslationUnit = {
-        val fis = new FileInputStream(fileToAnalyse)
-        val ast = parseFile(fis, fileToAnalyse.getName, fileToAnalyse.getParent)
-        fis.close()
+    private def getAstFromPi(fileToAnalyse: String): TranslationUnit = {
+        val inputStream: InputStream = getClass.getResourceAsStream("/" + fileToAnalyse)
+
+        if (inputStream == null)
+            throw new FileNotFoundException("Input file not fould: " + fileToAnalyse)
+
+        val ast = parseFile(inputStream, fileToAnalyse, "")
+        inputStream.close()
         ast
     }
 
-    private def compareTypeChecking(file: File): Tuple2[Long, Long] = {
-        val source_ast = getAstFromPi(file)
+    private def compareTypeChecking(fname: String): Tuple2[Long, Long] = {
+        val source_ast = getAstFromPi(fname)
         val result_ast = i.transformAst(source_ast, getDefUse(source_ast))._1
         val ts_source = getTypeSystem(source_ast)
         val ts_result = getTypeSystem(result_ast)
@@ -156,7 +160,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         val typeCheckSourceStart = System.currentTimeMillis()
         ts_source.checkASTSilent
         val typeCheckSourceDuration = System.currentTimeMillis() - typeCheckSourceStart
-        print("++" + file.getName() + "++\n" + "TypeCheck Source: \t\t" + typeCheckSourceDuration + "\t\t\t\t")
+        print("++" + fname + "++\n" + "TypeCheck Source: \t\t" + typeCheckSourceDuration + "\t\t\t\t")
 
         val typeCheckResultStart = System.currentTimeMillis()
         ts_result.checkASTSilent
@@ -936,22 +940,22 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println(testAst(source_ast))
     }
 
-    @Test def test_pi() {
+    @Ignore def test_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/applets/applets.pi")
         testFile(file)
     }
 
-    @Test def test_applets_pi() {
+    @Ignore def test_applets_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/applets/applets.pi")
         testFile(file)
     }
 
-    @Test def test_stat_pi() {
+    @Ignore def test_stat_pi() {
         val file = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/coreutils/stat.pi")
         testFile(file)
     }
 
-    @Test def test_alex_pi() {
+    @Ignore def test_alex_pi() {
         val file = new File("C:\\Users\\Flo\\Dropbox\\HiWi\\Flo\\Alex\\r8a66597-udc.pi")
         val macroFilter = new util.ArrayList[String]()
         macroFilter.add("x:CONFIG_")
@@ -961,7 +965,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         de.fosd.typechef.featureexpr.FeatureExprFactory.setDefault(de.fosd.typechef.featureexpr.FeatureExprFactory.bdd)
 
         val parse = System.currentTimeMillis()
-        val ast = getAstFromPi(file)
+        val ast = getAstFromPi(file.getAbsolutePath)
         println("Parsing took: " + ((System.currentTimeMillis() - parse) / 1000) + "s")
 
         val print = System.currentTimeMillis()
@@ -969,7 +973,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println("Printing took: " + ((System.currentTimeMillis() - print) / 1000) + "s")
     }
 
-    @Test def test_cpio_pi() {
+    @Ignore def test_cpio_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/cpio.pi")
         testFile(file)
 
@@ -978,104 +982,104 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         i.ifdeftoif(ast, defuse)*/
     }
 
-    @Test def test_update_passwd_pi() {
+    @Ignore def test_update_passwd_pi() {
         val file = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/libbb/update_passwd.pi")
         testFile(file)
     }
 
-    @Test def test_tr_pi() {
+    @Ignore def test_tr_pi() {
         val file = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/coreutils/tr.pi")
         testFile(file)
     }
 
-    @Test def test_fold_pi() {
+    @Ignore def test_fold_pi() {
         val file = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/coreutils/fold.pi")
         testFile(file)
     }
 
-    @Test def test_lzop_pi() {
+    @Ignore def test_lzop_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/lzop.pi")
         testFile(file)
     }
 
-    @Test def test_rpm2cpio_pi() {
+    @Ignore def test_rpm2cpio_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/rpm2cpio.pi")
         testFile(file)
     }
 
-    @Test def test_filter_accept_all_pi() {
+    @Ignore def test_filter_accept_all_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/libarchive/filter_accept_all.pi")
         testFile(file)
     }
 
-    @Test def test_decompress_unzip_pi() {
+    @Ignore def test_decompress_unzip_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/libarchive/decompress_unzip.pi")
         testFile(file)
     }
 
-    @Test def test_ar_pi() {
+    @Ignore def test_ar_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/ar.pi")
         testFile(file)
     }
 
-    @Test def test_tar_pi() {
+    @Ignore def test_tar_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/tar.pi")
         testFile(file)
     }
 
-    @Test def test_bbunzip_pi() {
+    @Ignore def test_bbunzip_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/bbunzip.pi")
         testFile(file)
     }
 
-    @Test def test_chpst_pi() {
+    @Ignore def test_chpst_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/runit/chpst.pi")
         testFile(file)
     }
 
-    @Test def test_diff_pi() {
+    @Ignore def test_diff_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/editors/diff.pi")
         testFile(file)
     }
 
-    @Test def test_ls_pi() {
+    @Ignore def test_ls_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/coreutils/ls.pi")
         testFile(file)
     }
 
-    @Test def test_sed_pi() {
+    @Ignore def test_sed_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/editors/sed.pi")
         testFile(file)
     }
 
-    @Test def test_linux_cciss_pi() {
+    @Ignore def test_linux_cciss_pi() {
         val file = new File("D:/drivers/block/cciss.pi")
         testFile(file)
     }
 
-    @Test def test_linux_battery_pi() {
+    @Ignore def test_linux_battery_pi() {
         val file = new File("D:/drivers/acpi/battery.pi")
         testFile(file)
     }
 
-    @Test def test_linux_ac_pi() {
+    @Ignore def test_linux_ac_pi() {
         val file = new File("D:/drivers/acpi/ac.pi")
         testFile(file)
     }
 
-    @Test def test_lineedit_pi() {
+    @Ignore def test_lineedit_pi() {
         val file = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/libbb/lineedit.pi")
         testFile(file)
     }
 
-    @Test def test_cdrom_pi() {
+    @Ignore def test_cdrom_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/flo/pifiles/cdrom.pi")
         //testFile(file)
 
         de.fosd.typechef.featureexpr.FeatureExprFactory.setDefault(de.fosd.typechef.featureexpr.FeatureExprFactory.bdd)
 
         val parse = System.currentTimeMillis()
-        val ast = getAstFromPi(file)
+        val ast = getAstFromPi(file.getAbsolutePath)
         println("Parsing took: " + ((System.currentTimeMillis() - parse) / 1000) + "s")
 
         val print = System.currentTimeMillis()
@@ -1083,17 +1087,17 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println("Printing took: " + ((System.currentTimeMillis() - print) / 1000) + "s")
     }
 
-    @Test def test_test_pi() {
+    @Ignore def test_test_pi() {
         val file = new File("C:/Users/Flo/Dropbox/HiWi/Flo/test/test.pi")
         testFile(file, true)
     }
 
-    @Test def test_mpt2sas_base_pi() {
+    @Ignore def test_mpt2sas_base_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/flo/pifiles/cdrom.pi")
         testFile(file)
     }
 
-    @Test def test_mpt2sas_config_pi() {
+    @Ignore def test_mpt2sas_config_pi() {
         val file = new File("C:/users/flo/dropbox/hiwi/flo/TypeChef/ifdeftoif/cdrom.pi")
         testFile(file)
     }
@@ -1353,7 +1357,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println(source_ast2)
     }
 
-    @Test def struct_test() {
+    @Ignore def struct_test() {
         val file = new File("C:/users/flo/dropbox/hiwi/flo/random/struct.pi")
         testFile(file)
     }
@@ -1461,7 +1465,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
                 filesTransformed = filesTransformed + 1
 
                 val startParsingAndTypeChecking = System.currentTimeMillis()
-                val source_ast = getAstFromPi(file)
+                val source_ast = getAstFromPi(file.getAbsolutePath)
                 typecheckTranslationUnit(source_ast)
                 val defUseMap = getDeclUseMap
                 val timeToParseAndTypeCheck = System.currentTimeMillis() - startParsingAndTypeChecking
@@ -1656,7 +1660,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println("\n\nDouble lifted:\n" + PrettyPrinter.print(newNewAst))
     }
 
-    @Test def option_ftest() {
+    @Ignore def option_ftest() {
         val source_ast = getAST( """
       #include "opt.h"
       extern struct sOpt opt;
@@ -1665,17 +1669,17 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println("+++Pretty printed+++\n" + PrettyPrinter.print(source_ast))
     }
 
-    @Test def flo_ast_test() {
-        val source_ast = getAstFromPi(new File("C:/users/flo/dropbox/hiwi/flo/test/test2.pi"))
+    @Ignore def flo_ast_test() {
+        val source_ast = getAstFromPi((new File("C:/users/flo/dropbox/hiwi/flo/test/test2.pi")).getAbsolutePath)
         println(source_ast)
     }
 
-    @Test def busy_box_test() {
+    @Ignore def busy_box_test() {
         val busybox = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/")
         transformDir(busybox)
     }
 
-    @Test def directory_test() {
+    @Ignore def directory_test() {
         transformDir(new File("C:/users/flo/dropbox/hiwi/flo/busybox/"))
     }
 
@@ -1842,12 +1846,12 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println(testAst(source_ast3))
     }
 
-    @Test def declaration_test() {
+    @Ignore def declaration_test() {
         // val file = new File("C:/users/flo/dropbox/hiwi/flo/pifiles/cdrom.pi")
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/libbb/lineedit.pi")
         println("parsing")
         val parse_time = System.currentTimeMillis()
-        val source_ast = getAstFromPi(file)
+        val source_ast = getAstFromPi(file.getAbsolutePath)
         println(" took: " + (System.currentTimeMillis() - parse_time) + " ms")
         i.analyseDeclarations(source_ast)
     }
@@ -1864,15 +1868,15 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         println("Right: " + fix.implies(FeatureExprFactory.True).isTautology)
     }
 
-    @Test def pretty_printer_test() {
+    @Ignore def pretty_printer_test() {
         val file = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/applets/applets.pi")
         //testFile(file)
         val newFullFilePath = singleFilePath ++ getFileNameWithoutExtension(file) ++ ".ifdeftoif"
-        val source_ast = getAstFromPi(new File(newFullFilePath))
+        val source_ast = getAstFromPi(newFullFilePath)
         typecheckTranslationUnit(source_ast)
     }
 
-    @Test def file_test() {
+    @Ignore def file_test() {
         //val file = new File("C:/Users/Flo/Dropbox/HiWi/Flo/test/annotated_typedef.c")
         //val file = new File("C:/Users/Flo/Dropbox/HiWi/Flo/test/test_decluse.c")
         //val file = new File("C:/Users/Flo/Dropbox/HiWi/Flo/test/test_type_error.c")
@@ -1893,7 +1897,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         //val file = new File("C:/Users/Flo/Dropbox/HiWi/Flo/test/pretty_print.c")
         val file = new File("C:\\Users\\Flo\\Dropbox\\HiWi\\Flo\\test\\struct_usage.c")
 
-        val source_ast = getAstFromPi(file)
+        val source_ast = getAstFromPi(file.getAbsolutePath)
         println(source_ast.toString() ++ "\n\n")
         testFile(file)
     }
@@ -1908,7 +1912,7 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         tu.defs.foreach(x => i.handleDeclarations(x.asInstanceOf[Opt[Declaration]]).foreach(y => println(PrettyPrinter.print(y.entry) ++ "\n")))
     }
 
-    @Test def declaration_count_test() {
+    @Ignore def declaration_count_test() {
         /*val context = fa.and((fb.or(fc))).and(fc.or(fb.or(fa.not())))
         val choice_condition = fa.and((fb.or(fc))).and(fc.not().or(fb.not()))
         val first_statement = One(ExprStatement(PostfixExpr(Id("vfork_compressor"),FunctionCall(ExprList(List(Opt((fa.and(fc.or(fb)).and(fc.or(fb).or(fa.not())).and(fc.not().or(fb.not()))),PostfixExpr(Id("tbInfo"),PointerPostfixSuffix(".",Id("tarFd"))))))))))
@@ -1918,27 +1922,27 @@ class IfdefToIfTest extends ConditionalNavigation with ASTNavigation with CDeclU
         val debug = 0*/
 
         val file = new File("C:/Users/Flo/Dropbox/HiWi/Flo/test/function_call_test.c")
-        val source_ast = getAstFromPi(file)
+        val source_ast = getAstFromPi(file.getAbsolutePath)
 
         println(i.countNumberOfDeclarations(source_ast))
     }
 
     @Test def compareTypeCheckingTimes() {
-        val applets = new File("C:/users/flo/dropbox/hiwi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/applets/applets.pi")
-        val tr = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/coreutils/tr.pi")
-        val bbunzip = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/bbunzip.pi")
-        val cal = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/coreutils/cal.pi")
-        val ln = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/coreutils/ln.pi")
-        val halt = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/init/halt.pi")
-        val dump = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/libbb/dump.pi")
-        val dc = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/miscutils/dc.pi")
-        val inotifyd = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/miscutils/inotifyd.pi")
-        val unzip = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/archival/unzip.pi")
-        val hdpam = new File("C:/Users/Flo/Dropbox/HiWi/busybox/TypeChef-BusyboxAnalysis/busybox-1.18.5/miscutils/hdparm.pi")
+        val applets  = "ifdef2if/applets.pi"
+        val tr       = "ifdef2if/tr.pi"
+        val bbunzip  = "ifdef2if/bbunzip.pi"
+        val cal      = "ifdef2if/cal.pi"
+        val ln       = "ifdef2if/ln.pi"
+        val halt     = "ifdef2if/halt.pi"
+        val dump     = "ifdef2if/dump.pi"
+        val dc       = "ifdef2if/dc.pi"
+        val inotifyd = "ifdef2if/inotifyd.pi"
+        val unzip    = "ifdef2if/unzip.pi"
+        val hdpam    = "ifdef2if/hdparm.pi"
 
 
         val list = List(applets, tr, bbunzip, cal, ln, halt, dump, dc, inotifyd, unzip, hdpam)
-        val csvEntries = list.map(x => (x.getName(), compareTypeChecking(x))).map(y => y._1 + "," + y._2._1.toString + "," + y._2._2.toString + "," + i.computeDifference(y._2._1, y._2._2).toString + "\n") mkString
+        val csvEntries = list.map(x => (x, compareTypeChecking(x))).map(y => y._1 + "," + y._2._1.toString + "," + y._2._2.toString + "," + i.computeDifference(y._2._1, y._2._2).toString + "\n") mkString
         val csvHeader = "File name, Type check source, Type check result, Difference\n"
         writeToTextFile(path ++ "type_check.csv", csvHeader + csvEntries)
     }
