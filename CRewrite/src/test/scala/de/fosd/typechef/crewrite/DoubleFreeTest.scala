@@ -117,6 +117,8 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
             }
             """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
         getFreedMem(""" { free(a->b); } """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("b"))))
+        getFreedMem(""" { free(&(a->b)); } """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("b"))))
+        getFreedMem(""" { free(*(a->b)); } """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("b"))))
         getFreedMem(""" { free(a->b->c); } """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("c"))))
         getFreedMem(""" { free(a.b); } """.stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("b"))))
         getFreedMem(""" { free(a[i]); }""".stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
