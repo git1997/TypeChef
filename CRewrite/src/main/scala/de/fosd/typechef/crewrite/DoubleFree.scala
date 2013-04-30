@@ -18,6 +18,16 @@ import de.fosd.typechef.featureexpr.FeatureModel
 //     is a conservative analysis for program flow
 //     so the analysis will likely produce a lot
 //     of false positives
+//   - the analysis considers only calls to malloc, calloc, realloc,
+//     and free. the following case is not handled right:
+//     ...
+//       x = malloc(2);
+//       free(x);
+//       x = randomFunctionWhichReturnsNewMemoryLocation(...)
+//       free(x);
+//     ...
+//     since we work only intraprocedural, we cannot detect this
+//     and report a warning (conservative) to prevent false negatives.
 class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneFW[Id](env, udm, fm) with IntraCFG with CFGHelper with ASTNavigation {
 
     // determine whether a given AST element a
