@@ -30,36 +30,18 @@ import de.fosd.typechef.featureexpr.FeatureModel
 //     and report a warning (conservative) to prevent false negatives.
 class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneFW[Id](env, udm, fm) with IntraCFG with CFGHelper with ASTNavigation {
 
-    // determine whether a given AST element a
-    // contains a memory allocation call (malloc, calloc, or realloc)
-    // we ensure that malloc, calloc, realloc are from /usr/include/stdlib.h (see comment)
-    private def containsMemoryAllocationCall(a: AST): Boolean = {
-        var res = false
-        val memalloc = manytd(query {
-            case PostfixExpr(i@Id(s), _) => {
-                if ((s.equals("malloc") || s.equals("calloc") || s.equals("realloc"))
-                    // && i.hasPosition
-                    // && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h")
-                ) res = true
-            }
-        })
-        memalloc(a)
-        res
-    }
-
     def id2SetT(i: Id) = Set(i)
 
-    // returns a list of Ids with names of variables that point to
-    // dynamically created memory regions (malloc, calloc, realloc)
-    // using the terminology of liveness we return pointers of newly allocated memory regions
+    // Returns a set of Ids that have been reassigned with a new memory location.
+    // We don't go for calls to standard memory allocation functions, such as
+    // calloc, malloc, and realloc, since we do get a lot of false positives, when
+    // neglecting reassignments. It doesn't matter where the pointer allocation comes
+    // from, we only care about double freeing.
     def kill(a: AST) = {
         var res = Set[Id]()
         val mempointers = manytd(query {
-            case InitDeclaratorI(declarator, _, Some(init)) => {
-                if (containsMemoryAllocationCall(init)) res += declarator.getId
-            }
-            case AssignExpr(target@Id(_), "=", source) => {
-                if (containsMemoryAllocationCall(source)) res += target
+            case AssignExpr(target@Id(_), "=", _) => {
+                res += target
             }
         })
 
@@ -78,6 +60,15 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
 
         // add a free target independent of & and *
         def addFreeTarget(e: Expr) {
+            // free(a->b)
+            val sp = filterAllASTElems[PointerPostfixSuffix](e)
+            if (!sp.isEmpty) {
+                for (spe <- filterAllASTElems[Id](sp.reverse.head))
+                    res += spe
+
+                return
+            }
+
             // free(a[b])
             val ap = filterAllASTElems[ArrayAccess](e)
             if (!ap.isEmpty) {
@@ -87,15 +78,6 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
                         case _ =>
                     }
                 }
-
-                return
-            }
-
-            // free(a->b)
-            val sp = filterAllASTElems[PointerPostfixSuffix](e)
-            if (!sp.isEmpty) {
-                for (spe <- filterAllASTElems[Id](sp.reverse.head))
-                    res += spe
 
                 return
             }

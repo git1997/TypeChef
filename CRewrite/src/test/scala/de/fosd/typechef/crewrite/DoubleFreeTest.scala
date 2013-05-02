@@ -7,13 +7,6 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory
 
 class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
 
-    // check allocated memory locations
-    private def getDynAllocatedMem(code: String) = {
-        val a = parseCompoundStmt(code)
-        val df = new DoubleFree(CASTEnv.createASTEnv(a), null, null)
-        df.kill(a)
-    }
-
     // check freed pointers
     private def getFreedMem(code: String) = {
         val a = parseCompoundStmt(code)
@@ -44,23 +37,6 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
 
         }
         res
-    }
-
-    @Test def test_allocation() {
-        getDynAllocatedMem("{ int *a = malloc(2); }") should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
-        getDynAllocatedMem("{ void *a,*b = malloc(2); }") should be(Map(FeatureExprFactory.True -> Set(Id("b"))))
-        // tricky example: a and b are aliases for each other
-        getDynAllocatedMem("{ void *a,*b; a = b = malloc(2); } ") should be(Map(FeatureExprFactory.True -> Set(Id("a"), Id("b"))))
-        getDynAllocatedMem("{ void *a = malloc(2),*b; }") should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
-        getDynAllocatedMem("{ a = malloc(2); }") should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
-        getDynAllocatedMem(
-            """{
-              |struct expr {
-              |  int a;
-              |};
-              |struct expr *e = malloc(sizeof(*e));
-              |}""".stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("e"))))
-        getDynAllocatedMem("{ int *a = realloc(a, 2); }") should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
     }
 
     @Test def test_free() {
@@ -124,6 +100,7 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
         getFreedMem(""" { free(a[i]); }""".stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
         getFreedMem(""" { free(*a); }""".stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
         getFreedMem(""" { free(&a); }""".stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("a"))))
+        getFreedMem(""" { free(a[i]->b); }""".stripMargin) should be(Map(FeatureExprFactory.True -> Set(Id("b"))))
     }
 
     @Test def test_double_free_simple() {
