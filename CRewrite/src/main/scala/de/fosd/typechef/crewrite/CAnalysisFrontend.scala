@@ -47,8 +47,7 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
     private def doubleFreeFunctionDef(f: FunctionDef, env: ASTEnv, udm: UseDeclMap): List[AnalysisError] = {
         var res: List[AnalysisError] = List()
 
-        // TODO: head.entry is wrong head might be optional and part of an alternative!
-        val ss = getAllSucc(f.stmt.innerStatements.head.entry, fm, env)
+        val ss = getAllSucc(f, fm, env)
         val df = new DoubleFree(env, udm, fm)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
