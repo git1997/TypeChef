@@ -66,6 +66,19 @@ object Frontend {
 
         def get(period: String): Long = times.getOrElse(period, 0)
 
+        override def toString = {
+            var res = "timing "
+            val switems = times.toList.filterNot(x => x._1 == "none" || x._1 == "done")
+
+            if (switems.size > 0) {
+                res = res + "("
+                res = res + switems.map(_._1).reduce(_ + ", " + _)
+                res = res + ")\n"
+                res = res + switems.map(_._2.toString).reduce(_ + ";" + _)
+            }
+            res
+        }
+
     }
 
 
@@ -157,7 +170,7 @@ object Frontend {
         stopWatch.start("done")
         errorXML.write()
         if (opt.recordTiming)
-            println("timing (lexer, parser, type system, interface inference, dump control flow graph, data flow)\n" + (stopWatch.get("lexing")) + ";" + (stopWatch.get("parsing")) + ";" + (stopWatch.get("typechecking")) + ";" + (stopWatch.get("interfaces")) + ";" + (stopWatch.get("dumpCFG")) + ";" + (stopWatch.get("dataFlow")))
+            println(stopWatch)
 
     }
 
