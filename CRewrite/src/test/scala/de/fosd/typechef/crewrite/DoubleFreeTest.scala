@@ -4,6 +4,7 @@ import de.fosd.typechef.parser.c.{FunctionDef, Id, TestHelper}
 import org.junit.Test
 import org.scalatest.matchers.ShouldMatchers
 import de.fosd.typechef.featureexpr.FeatureExprFactory
+import java.io.{FileWriter, File}
 
 class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
 
@@ -22,7 +23,7 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
         val df = new DoubleFree(CASTEnv.createASTEnv(f), null, null)
 
         val env = CASTEnv.createASTEnv(f)
-        val ss = getAllSucc(f.stmt.innerStatements.head.entry, FeatureExprFactory.empty, env)
+        val ss = getAllSucc(f, FeatureExprFactory.empty, env)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
         for (s <- nss) {
