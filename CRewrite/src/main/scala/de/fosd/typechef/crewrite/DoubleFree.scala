@@ -21,7 +21,18 @@ import de.fosd.typechef.featureexpr.FeatureModel
 //   - the analysis has several limitations regarding pointer arithmetic
 //     and produces a false positives for example for:
 //     free(a[0]) vs. free(a[1]) and so on.
-class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneFW[Id](env, udm, fm) with IntraCFG with CFGHelper with ASTNavigation {
+
+// in different projects developers use different implementations for
+// the function free, e.g.:
+// linux: kfree for kernel memory deallocation
+// openssl: OPENSSL_free (actually CRYPTO_free; OPENSSL_free is a CPP macro)
+class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel, casestudy: String) extends MonotoneFW[Id](env, udm, fm) with IntraCFG with CFGHelper with ASTNavigation {
+
+    val freecalls = {
+        if (casestudy == "linux") List("free", "kfree")
+        else if (casestudy == "openssl") List("free", "CRYPTO_free")
+        else List("free")
+    }
 
     def id2SetT(i: Id) = Set(i)
 
@@ -44,8 +55,6 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
 
     // returns a list of Ids with names of variables that a freed
     // by call to free or realloc
-    // we ensure (see comment) that call to free belongs to system free function
-    // (see /usr/include/stdlib.h)
     // using the terminology of liveness we return pointers that have that are in use
     def gen(a: AST) = {
 
@@ -84,12 +93,12 @@ class DoubleFree(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends Monoton
 
 
         val freedpointers = manytd(query {
-            // usually dynamically allocated memory is freed with library function free
-            case PostfixExpr(i@Id("free"), FunctionCall(l)) => {
-                // if (i.hasPosition && i.getPositionFrom.getFile.contains("/usr/include/stdlib.h"))
+            case PostfixExpr(Id(n), FunctionCall(l)) => {
 
-                for (e <- l.exprs) {
-                    addFreeTarget(e.entry)
+                if (freecalls.contains(n)) {
+                    for (e <- l.exprs) {
+                        addFreeTarget(e.entry)
+                    }
                 }
             }
             // realloc(*ptr, size) is used for reallocation of memory

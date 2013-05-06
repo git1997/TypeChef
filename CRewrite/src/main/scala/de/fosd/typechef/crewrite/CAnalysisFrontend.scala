@@ -27,13 +27,24 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
 
     def doubleFree() {
 
+        val casestudy = {
+            tunit.getFile match {
+                case None => ""
+                case Some(x) => {
+                    if (x.contains("linux")) "linux"
+                    else if (x.contains("openssl")) "openssl"
+                    else ""
+                }
+            }
+        }
+
         val ts = new CTypeSystemFrontend(tunit, fm)
         //assert(ts.checkASTSilent, "typecheck fails!")
         val env = CASTEnv.createASTEnv(tunit)
         val udm = ts.getUseDeclMap
 
         val fdefs = filterAllASTElems[FunctionDef](tunit)
-        val errors = fdefs.flatMap(doubleFreeFunctionDef(_, env, udm))
+        val errors = fdefs.flatMap(doubleFreeFunctionDef(_, env, udm, casestudy))
 
         if (errors.isEmpty) {
             println("No double frees found!")
@@ -44,11 +55,12 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         errors.isEmpty
     }
 
-    private def doubleFreeFunctionDef(f: FunctionDef, env: ASTEnv, udm: UseDeclMap): List[AnalysisError] = {
+    private def doubleFreeFunctionDef(f: FunctionDef, env: ASTEnv, udm: UseDeclMap, casestudy: String): List[AnalysisError] = {
+        println("Analyzing: " + f.getName)
         var res: List[AnalysisError] = List()
 
         val ss = getAllSucc(f, fm, env)
-        val df = new DoubleFree(env, udm, fm)
+        val df = new DoubleFree(env, udm, fm, casestudy)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
 

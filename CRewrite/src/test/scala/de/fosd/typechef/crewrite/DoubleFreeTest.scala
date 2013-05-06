@@ -4,14 +4,13 @@ import de.fosd.typechef.parser.c.{FunctionDef, Id, TestHelper}
 import org.junit.Test
 import org.scalatest.matchers.ShouldMatchers
 import de.fosd.typechef.featureexpr.FeatureExprFactory
-import java.io.{FileWriter, File}
 
 class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
 
     // check freed pointers
     private def getFreedMem(code: String) = {
         val a = parseCompoundStmt(code)
-        val df = new DoubleFree(CASTEnv.createASTEnv(a), null, null)
+        val df = new DoubleFree(CASTEnv.createASTEnv(a), null, null, "")
         df.gen(a)
     }
 
@@ -20,7 +19,7 @@ class DoubleFreeTest extends TestHelper with ShouldMatchers with CFGHelper {
     private def hasDoubleFree(code: String): Boolean = {
         val f = parseFunctionDef(code)
         var res = false
-        val df = new DoubleFree(CASTEnv.createASTEnv(f), null, null)
+        val df = new DoubleFree(CASTEnv.createASTEnv(f), null, null, "")
 
         val env = CASTEnv.createASTEnv(f)
         val ss = getAllSucc(f, FeatureExprFactory.empty, env)
