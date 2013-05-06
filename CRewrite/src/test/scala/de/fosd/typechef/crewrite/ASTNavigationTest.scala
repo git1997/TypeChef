@@ -1,7 +1,5 @@
 package de.fosd.typechef.crewrite
 
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.matchers.ShouldMatchers
 import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.conditional._
@@ -9,7 +7,6 @@ import de.fosd.typechef.parser.c._
 import de.fosd.typechef.featureexpr.FeatureExprFactory._
 import org.junit.Ignore
 
-@RunWith(classOf[JUnitRunner])
 class ASTNavigationTest extends ShouldMatchers with ASTNavigation with ConditionalNavigation with EnforceTreeHelper with TestHelper {
 
 
