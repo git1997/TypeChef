@@ -4,6 +4,7 @@ import de.fosd.typechef.parser.c.AST
 import de.fosd.typechef.conditional._
 import de.fosd.typechef.featureexpr.FeatureExpr
 import reflect.ClassManifest
+import scala.annotation.tailrec
 
 // simplified navigation support
 // reimplements basic navigation between AST nodes not affected by Opt and Choice nodes
@@ -39,8 +40,7 @@ trait ASTNavigation {
             case Opt(_, v: One[_]) => v.value.asInstanceOf[AST]
             case Opt(_, v: AST) => v
             case null => {
-                val eparent = env.parent(e)
-                eparent match {
+                env.parent(e) match {
                     case o: Opt[_] => prevAST(o, env)
                     case c: Choice[_] => prevAST(c, env)
                     case c: One[_] => prevAST(c, env)
@@ -61,8 +61,7 @@ trait ASTNavigation {
             case Opt(_, v: One[_]) => v.value.asInstanceOf[AST]
             case Opt(_, v: AST) => v
             case null => {
-                val eparent = env.parent(e)
-                eparent match {
+                env.parent(e) match {
                     case o: Opt[_] => nextAST(o, env)
                     case c: Choice[_] => nextAST(c, env)
                     case c: One[_] => nextAST(c, env)
@@ -78,20 +77,32 @@ trait ASTNavigation {
     // [ Opt(f1, e1), Opt(f2, e2), ..., Opt(fi, ei), ..., Opt(fn, en) ]
     // returns [e1, e2, ..., ei]
     def prevASTElems(e: Product, env: ASTEnv): List[AST] = {
-        e match {
-            case null => List()
-            case s => prevASTElems(prevAST(s, env), env) ++ List(childAST(s))
+
+        @tailrec
+        def prevASTElemsHelper(eh: Product, res: List[AST]): List[AST] = {
+            eh match {
+                case null => res
+                case s => prevASTElemsHelper(prevAST(s, env), childAST(s) :: res)
+            }
         }
+
+        prevASTElemsHelper(e, Nil).reverse
     }
 
     // returns a list of all next AST elements including e
     // [ Opt(f1, e1), Opt(f2, e2), ..., Opt(fi, ei), ..., Opt(fn, en) ]
     // returns [ei, ..., en]
     def nextASTElems(e: Product, env: ASTEnv): List[AST] = {
-        e match {
-            case null => List()
-            case s => List(childAST(s)) ++ nextASTElems(nextAST(s, env), env)
+
+        @tailrec
+        def nextASTElemsHelper(eh: Product, res: List[AST]): List[AST] = {
+            eh match {
+                case null => res
+                case s => nextASTElemsHelper(nextAST(s, env), childAST(s) :: res)
+            }
         }
+
+        nextASTElemsHelper(e, Nil)
     }
 
     // returns the first AST element that is nested in the following elements
@@ -116,17 +127,6 @@ trait ASTNavigation {
             case p: Product if (m.erasure.isInstance(p)) => List(p.asInstanceOf[T])
             case l: List[_] => l.flatMap(filterASTElems[T])
             case p: Product => p.productIterator.toList.flatMap(filterASTElems[T])
-            case _ => List()
-        }
-    }
-
-    // method recursively filters all AST elements for a given type and feature expression
-    // base case is the element of type T with feature expression ctx
-    def filterASTElems[T <: AST](a: Any, ctx: FeatureExpr, env: ASTEnv)(implicit m: ClassManifest[T]): List[T] = {
-        a match {
-            case p: Product if (m.erasure.isInstance(p) && (env.featureExpr(p) implies ctx isSatisfiable())) => List(p.asInstanceOf[T])
-            case l: List[_] => l.flatMap(filterAllASTElems[T](_, ctx, env))
-            case p: Product => p.productIterator.toList.flatMap(filterAllASTElems[T](_, ctx, env))
             case _ => List()
         }
     }

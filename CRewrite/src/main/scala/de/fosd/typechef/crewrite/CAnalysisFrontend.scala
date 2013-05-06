@@ -63,8 +63,11 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         val df = new DoubleFree(env, udm, fm, casestudy)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
+        val oss = nss.filterNot(env.featureExpr(_).isContradiction(fm))
 
-        for (s <- nss) {
+        for (s <- oss) {
+            if (f.getName == "sqlite3Pragma")
+                println(s, s.range)
             val g = df.gen(s)
             val out = df.out(s)
 

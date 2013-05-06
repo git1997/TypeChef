@@ -307,15 +307,16 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
                 findPriorASTElem[FunctionDef](t, env) match {
                     case None => assert(assertion = false, message = "label statements should always occur within a function definition"); List()
                     case Some(f) => {
-                        val l_gotos = filterASTElems[GotoStatement](f, env.featureExpr(t), env)
+                        val l_gotos = filterASTElems[GotoStatement](f, env).filter(env.featureExpr(_).isSatisfiable(fm))
+                        val r_gotos = l_gotos.filter(env.featureExpr(_).and(env.featureExpr(t)).isSatisfiable(fm))
                         // filter gotostatements with the same id as the labelstatement
                         // and all gotostatements with dynamic target
-                        val l_gotos_filtered = l_gotos.filter({
+                        val r_gotos_filtered = r_gotos.filter({
                             case GotoStatement(Id(name)) => if (n == name) true else false
                             case _ => true
                         })
                         val l_preds = getStmtPred(t, ctx, oldres, fm, env)
-                        l_gotos_filtered.map(x => (env.featureExpr(x), env.featureExpr(x), x)) ++ l_preds
+                        r_gotos_filtered.map(x => (env.featureExpr(x), env.featureExpr(x), x)) ++ l_preds
                     }
                 }
             }
