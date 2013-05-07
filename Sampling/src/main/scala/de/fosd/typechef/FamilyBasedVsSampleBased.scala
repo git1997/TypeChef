@@ -585,7 +585,7 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
 
         val env = CASTEnv.createASTEnv(f)
         val lv = new Liveness(env, udm, fm)
-        val ss = getAllSucc(f.stmt.innerStatements.head.entry, FeatureExprFactory.empty, env)
+        val ss = getAllSucc(f, FeatureExprFactory.empty, env)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
         for (s <- nss) lv.entry(s)

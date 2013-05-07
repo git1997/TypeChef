@@ -63,23 +63,25 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         // Using the project's fm is too expensive since control
         // flow computation requires a lot of sat calls.
         // We use the proper fm in DoubleFree (see MonotoneFM).
-        val ss = getAllSucc(f, FeatureExprFactory.empty, env)
+        val ss = getAllSucc(f, FeatureExprFactory.empty, env).reverse
+        println("succs ready: " + ss.size)
         val df = new DoubleFree(env, udm, fm, casestudy)
+        val li = new Liveness(env, udm, fm)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
-        val oss = nss.filterNot(env.featureExpr(_).isContradiction(fm))
 
-        for (s <- oss) {
-            val g = df.gen(s)
-            val out = df.out(s)
-
-            for ((i, _) <- out)
-                for ((_, j) <- g) {
-                    j.find(_ == i) match {
-                        case None =>
-                        case Some(x) => res ::= new AnalysisError(env.featureExpr(x), "warning: Try to free a memory block that has been released", x)
-                    }
-                }
+        for (s <- nss) {
+            li.in(s)
+//            val g = df.gen(s)
+//            val out = df.out(s)
+//
+//            for ((i, _) <- out)
+//                for ((_, j) <- g) {
+//                    j.find(_ == i) match {
+//                        case None =>
+//                        case Some(x) => res ::= new AnalysisError(env.featureExpr(x), "warning: Try to free a memory block that has been released", x)
+//                    }
+//                }
         }
 
         res
