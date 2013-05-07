@@ -587,8 +587,8 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
         val lv = new Liveness(env, udm, fm)
         val ss = getAllSucc(f, FeatureExprFactory.empty, env)
 
-        val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
-        for (s <- nss) lv.entry(s)
+        val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef]).reverse
+        for (s <- nss) lv.in(s)
     }
 
     def analyzeTasks(tasks: List[Task], tunit: TranslationUnit, fm: FeatureModel, opt: FamilyBasedVsSampleBasedOptions,
