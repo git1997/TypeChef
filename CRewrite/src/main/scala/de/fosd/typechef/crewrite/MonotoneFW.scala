@@ -102,9 +102,9 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
                 // check whether there is one succ with a different
                 // annotation than the source, if so recompute use
                 // the real feature model
-                if (ss.exists(x => {
-                    if (env.featureExpr(x.entry).equivalentTo(efexp)) false
-                    else true
+                println(efexp, ss.map(x => env.featureExpr(x.entry)))
+                if (! ss.forall(x => {
+                    env.featureExpr(x.entry).equivalentTo(efexp)
                 })) ss = succ(e, fm, env)
 
                 ss = ss.filterNot(x => x.entry.isInstanceOf[FunctionDef])
@@ -121,7 +121,17 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
     protected val analysis_exit_forward: AST => Map[T, FeatureExpr] =
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case e => {
-                val ss = pred(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
+                val efexp = env.featureExpr(e)
+                var ss = pred(e, FeatureExprFactory.empty, env)
+
+                // check whether there is one pred with a different
+                // annotation than the source, if so recompute use
+                // the real feature model
+                if (! ss.forall(x => {
+                    env.featureExpr(x.entry).equivalentTo(efexp)
+                })) ss = pred(e, fm, env)
+
+                ss = ss.filterNot(x => x.entry.isInstanceOf[FunctionDef])
                 var res = Map[T, FeatureExpr]()
                 for (s <- ss) {
                     for ((r, f) <- in(s.entry))

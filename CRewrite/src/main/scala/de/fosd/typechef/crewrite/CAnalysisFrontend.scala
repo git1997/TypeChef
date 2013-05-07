@@ -57,6 +57,7 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
     }
 
     private def doubleFreeFunctionDef(f: FunctionDef, env: ASTEnv, udm: UseDeclMap, casestudy: String): List[AnalysisError] = {
+        println("Analyzing: " + f.getName)
         var res: List[AnalysisError] = List()
 
         // It's ok to use FeatureExprFactory.empty here.
@@ -64,8 +65,7 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         // flow computation requires a lot of sat calls.
         // We use the proper fm in DoubleFree (see MonotoneFM).
         val ss = getAllSucc(f, FeatureExprFactory.empty, env).reverse
-        val df = new DoubleFree(env, udm, FeatureExprFactory.empty, casestudy)
-        val dfp = new DoubleFree(env, udm, fm, casestudy)
+        val df = new DoubleFree(env, udm, fm, casestudy)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
 
@@ -77,17 +77,7 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
                 for ((_, j) <- g) {
                     j.find(_ == i) match {
                         case None =>
-                        case Some(_) => {
-                            val gp = dfp.gen(s)
-                            val outp = dfp.out(s)
-                            for ((ip, _) <- outp)
-                                for ((_, jp) <- gp)
-                                    jp.find(_ == ip) match {
-                                        case None =>
-                                        case Some(x) => res ::= new AnalysisError(env.featureExpr(x), "warning: Try to free a memory block that has been released", x)
-                                    }
-
-                        }
+                        case Some(x) => res ::= new AnalysisError(env.featureExpr(x), "warning: Try to free a memory block that has been released", x)
                     }
                 }
         }
