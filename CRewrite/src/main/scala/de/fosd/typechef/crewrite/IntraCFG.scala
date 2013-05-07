@@ -86,8 +86,6 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
                 var oldres: CFGRes = List()
                 val ctx = env.featureExpr(source)
 
-                if (ctx isContradiction (fm)) return List()
-
                 var newres: CFGRes = predHelper(source, ctx, oldres, fm, env)
                 var changed = true
 
@@ -342,8 +340,6 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
             case None => {
                 var newres: CFGRes = List()
                 val ctx = env.featureExpr(source)
-
-                if (ctx isContradiction (fm)) return List()
 
                 newres = succHelper(source, ctx, newres, fm, env)
 

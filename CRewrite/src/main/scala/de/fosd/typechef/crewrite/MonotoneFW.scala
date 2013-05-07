@@ -96,9 +96,7 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
     protected val analysis_exit_backward: AST => Map[T, FeatureExpr] =
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case e => {
-                println("start ss determination for: " + PrettyPrinter.print(e))
                 val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
-                println("stop ss determination!")
                 var res = Map[T, FeatureExpr]()
                 for (s <- ss) {
                     for ((r, f) <- in(s.entry))

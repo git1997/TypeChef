@@ -44,6 +44,7 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         val udm = ts.getUseDeclMap
 
         val fdefs = filterAllASTElems[FunctionDef](tunit)
+        println("#functions " + fdefs.size)
         val errors = fdefs.flatMap(doubleFreeFunctionDef(_, env, udm, casestudy))
 
         if (errors.isEmpty) {
@@ -56,7 +57,6 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
     }
 
     private def doubleFreeFunctionDef(f: FunctionDef, env: ASTEnv, udm: UseDeclMap, casestudy: String): List[AnalysisError] = {
-        println("Analyzing: " + f.getName)
         var res: List[AnalysisError] = List()
 
         // It's ok to use FeatureExprFactory.empty here.
@@ -64,26 +64,21 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         // flow computation requires a lot of sat calls.
         // We use the proper fm in DoubleFree (see MonotoneFM).
         val ss = getAllSucc(f, FeatureExprFactory.empty, env).reverse
-        println("succs ready: " + ss.size)
-        val df = new DoubleFree(env, udm, fm, casestudy)
-        val li = new Liveness(env, udm, fm)
+        val df = new DoubleFree(env, udm, FeatureExprFactory.empty, casestudy)
 
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
 
         for (s <- nss) {
-            println("start live-in: " + PrettyPrinter.print(s))
-            li.in(s)
-            println("stop live-in")
-//            val g = df.gen(s)
-//            val out = df.out(s)
-//
-//            for ((i, _) <- out)
-//                for ((_, j) <- g) {
-//                    j.find(_ == i) match {
-//                        case None =>
-//                        case Some(x) => res ::= new AnalysisError(env.featureExpr(x), "warning: Try to free a memory block that has been released", x)
-//                    }
-//                }
+            val g = df.gen(s)
+            val out = df.out(s)
+
+            for ((i, _) <- out)
+                for ((_, j) <- g) {
+                    j.find(_ == i) match {
+                        case None =>
+                        case Some(x) => res ::= new AnalysisError(env.featureExpr(x), "warning: Try to free a memory block that has been released", x)
+                    }
+                }
         }
 
         res
