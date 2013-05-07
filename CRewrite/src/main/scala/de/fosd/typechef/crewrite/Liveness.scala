@@ -19,29 +19,31 @@ class IdentityHashMapCache[A] {
 class Liveness(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneFW[Id](env, udm, fm) with IntraCFG  {
 
     // returns all declared Ids independent of their annotation
-    private val declares: PartialFunction[Any, Set[Id]] = {
-        case DeclarationStatement(decl) => declares(decl)
-        case Declaration(_, init) => init.flatMap(declares).toSet
-        case InitDeclaratorI(declarator, _, _) => declares(declarator)
-        case AtomicNamedDeclarator(_, id, _) => Set(id)
-        case Opt(_, entry) => declares(entry)
-        case _ => Set()
-    }
+    private def declares(a: Any): Set[Id] =
+        a match {
+            case DeclarationStatement(decl) => declares(decl)
+            case Declaration(_, init) => init.flatMap(declares).toSet
+            case InitDeclaratorI(declarator, _, _) => declares(declarator)
+            case AtomicNamedDeclarator(_, id, _) => Set(id)
+            case Opt(_, entry) => declares(entry)
+            case _ => Set()
+        }
 
     // returns all defined Ids independent of their annotation
-    private val defines: PartialFunction[Any, Set[Id]] = {
-        case i@Id(_) => Set(i)
-        case AssignExpr(target, _, source) => defines(target)
-        case DeclarationStatement(d) => defines(d)
-        case Declaration(_, init) => init.flatMap(defines).toSet
-        case InitDeclaratorI(a, _, _) => defines(a)
-        case AtomicNamedDeclarator(_, i, _) => Set(i)
-        case ExprStatement(_: Id) => Set()
-        case ExprStatement(expr) => defines(expr)
-        case PostfixExpr(i@Id(_), SimplePostfixSuffix(_)) => Set(i) // a++; or a--;
-        case UnaryExpr(_, i@Id(_)) => Set(i) // ++a; or --a;
-        case Opt(_, entry) => defines(entry)
-        case _ => Set()
+    private def defines(a: Any): Set[Id] =
+        a match {
+            case i@Id(_) => Set(i)
+            case AssignExpr(target, _, source) => defines(target)
+            case DeclarationStatement(d) => defines(d)
+            case Declaration(_, init) => init.flatMap(defines).toSet
+            case InitDeclaratorI(i, _, _) => defines(i)
+            case AtomicNamedDeclarator(_, i, _) => Set(i)
+            case ExprStatement(_: Id) => Set()
+            case ExprStatement(expr) => defines(expr)
+            case PostfixExpr(i@Id(_), SimplePostfixSuffix(_)) => Set(i) // a++; or a--;
+            case UnaryExpr(_, i@Id(_)) => Set(i) // ++a; or --a;
+            case Opt(_, entry) => defines(entry)
+            case _ => Set()
     }
 
     // returns all used Ids independent of their annotation
