@@ -3,7 +3,7 @@ package de.fosd.typechef.crewrite
 import java.io.{Writer, StringWriter}
 
 import de.fosd.typechef.featureexpr._
-import de.fosd.typechef.parser.c.{TranslationUnit, FunctionDef}
+import de.fosd.typechef.parser.c.{PrettyPrinter, TranslationUnit, FunctionDef}
 import de.fosd.typechef.typesystem._
 
 
@@ -71,7 +71,9 @@ class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFa
         val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef])
 
         for (s <- nss) {
+            println("start live-in: " + PrettyPrinter.print(s))
             li.in(s)
+            println("stop live-in")
 //            val g = df.gen(s)
 //            val out = df.out(s)
 //

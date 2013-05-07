@@ -82,23 +82,10 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
                 val g = gen(t)
                 val k = kill(t)
 
-                var res = exit(t)
-                for ((_, v) <- k)
-                    for (d <- v)
-                        if (udm != null && udm.containsKey(d))
-                            for (nd <- udm.get(d))
-                                res = diff(res, id2SetT(nd))
-                        else
-                            res = diff(res, Set(d))
+                var res = out(t)
+                for ((_, v) <- k) res = diff(res, v)
 
-                for ((fexp, v) <- g)
-                    for (u <- v)
-                        if (udm != null && udm.containsKey(u))
-                            for (ud <- udm.get(u))
-                                res = join(res, fexp, id2SetT(ud))
-                        else {
-                            res = join(res, fexp, Set(u))
-                        }
+                for ((fexp, v) <- g) res = join(res, fexp, v)
                 res
             }
         }
@@ -109,10 +96,12 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
     protected val analysis_exit_backward: AST => Map[T, FeatureExpr] =
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case e => {
+                println("start ss determination for: " + PrettyPrinter.print(e))
                 val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
+                println("stop ss determination!")
                 var res = Map[T, FeatureExpr]()
                 for (s <- ss) {
-                    for ((r, f) <- entry(s.entry))
+                    for ((r, f) <- in(s.entry))
                         res = join(res, f and s.feature, Set(r))
                 }
                 res
@@ -125,7 +114,7 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
                 val ss = pred(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
                 var res = Map[T, FeatureExpr]()
                 for (s <- ss) {
-                    for ((r, f) <- entry(s.entry))
+                    for ((r, f) <- in(s.entry))
                         res = join(res, f and s.feature, Set(r))
                 }
                 res
