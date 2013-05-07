@@ -4,7 +4,7 @@ import org.kiama.attribution.AttributionBase
 
 import de.fosd.typechef.parser.c._
 import de.fosd.typechef.typesystem.UseDeclMap
-import de.fosd.typechef.featureexpr.{FeatureModel, FeatureExpr}
+import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureModel, FeatureExpr}
 
 // this trait provides standard routines of the monotone framework
 // (a general framework) for dataflow analyses such as liveness,
@@ -96,7 +96,19 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
     protected val analysis_exit_backward: AST => Map[T, FeatureExpr] =
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case e => {
-                val ss = succ(e, fm, env).filterNot(x => x.entry.isInstanceOf[FunctionDef])
+                val efexp = env.featureExpr(e)
+                var ss = succ(e, FeatureExprFactory.empty, env)
+
+                // check whether there is one succ with a different
+                // annotation than the source, if so recompute use
+                // the real feature model
+                if (ss.exists(x => {
+                    if (env.featureExpr(x.entry).equivalentTo(efexp)) false
+                    else true
+                })) ss = succ(e, fm, env)
+
+                ss = ss.filterNot(x => x.entry.isInstanceOf[FunctionDef])
+
                 var res = Map[T, FeatureExpr]()
                 for (s <- ss) {
                     for ((r, f) <- in(s.entry))
