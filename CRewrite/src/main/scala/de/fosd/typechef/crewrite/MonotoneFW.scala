@@ -105,7 +105,10 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
                 println(efexp, ss.map(x => env.featureExpr(x.entry)))
                 if (! ss.forall(x => {
                     env.featureExpr(x.entry).equivalentTo(efexp)
-                })) ss = succ(e, fm, env)
+                })) {
+                    clearCCFGCaches()
+                    ss = succ(e, fm, env)
+                }
 
                 ss = ss.filterNot(x => x.entry.isInstanceOf[FunctionDef])
 
@@ -129,7 +132,10 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
                 // the real feature model
                 if (! ss.forall(x => {
                     env.featureExpr(x.entry).equivalentTo(efexp)
-                })) ss = pred(e, fm, env)
+                })) {
+                    clearCCFGCaches()
+                    ss = pred(e, fm, env)
+                }
 
                 ss = ss.filterNot(x => x.entry.isInstanceOf[FunctionDef])
                 var res = Map[T, FeatureExpr]()
