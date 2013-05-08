@@ -1,13 +1,12 @@
-package de.fosd.typechef.crewrite
 
-import java.io.{Writer, StringWriter}
+package de.fosd.typechef.crewrite
 
 import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.parser.c.{TranslationUnit, FunctionDef}
+import java.io.{Writer, StringWriter}
 import de.fosd.typechef.typesystem._
 
-
-class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFactory.default.featureModelFactory.empty) extends CFGHelper {
+class CAnalysisFrontend(tunit: TranslationUnit, fm: FeatureModel = FeatureExprFactory.empty) extends CFGHelper {
 
     def dumpCFG(writer: Writer = new StringWriter()) {
         val fdefs = filterAllASTElems[FunctionDef](tunit)

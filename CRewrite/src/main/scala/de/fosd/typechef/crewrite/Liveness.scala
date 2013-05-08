@@ -44,7 +44,7 @@ class Liveness(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneF
             case UnaryExpr(_, i@Id(_)) => Set(i) // ++a; or --a;
             case Opt(_, entry) => defines(entry)
             case _ => Set()
-    }
+    	}
 
     // returns all used Ids independent of their annotation
     private def uses(a: Any): Set[Id] = {

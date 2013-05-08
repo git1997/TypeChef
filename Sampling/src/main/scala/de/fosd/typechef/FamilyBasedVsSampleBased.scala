@@ -8,7 +8,7 @@ import de.fosd.typechef.featureexpr._
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureModel, SatSolver}
 import de.fosd.typechef.featureexpr.sat.{SATFeatureModel, SATFeatureExprFactory}
 import de.fosd.typechef.parser.c._
-import de.fosd.typechef.typesystem.CTypeSystemFrontend
+import de.fosd.typechef.typesystem._
 import parser.c.CTypeContext
 import parser.c.FunctionDef
 import parser.c.TranslationUnit
@@ -32,7 +32,6 @@ import scala.Some
  *
  */
 object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation with CFGHelper {
-    type UseDeclMap = java.util.IdentityHashMap[Id, List[Id]]
 
     type Task = Pair[String, List[SimpleConfiguration]]
 
@@ -585,10 +584,10 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
 
         val env = CASTEnv.createASTEnv(f)
         val lv = new Liveness(env, udm, fm)
-        val ss = getAllSucc(f, FeatureExprFactory.empty, env)
+        val ss = getAllSucc(f, FeatureExprFactory.empty, env).map(_._1).filterNot(_.isInstanceOf[FunctionDef])
 
-        val nss = ss.map(_._1).filterNot(x => x.isInstanceOf[FunctionDef]).reverse
-        for (s <- nss) lv.in(s)
+        for (s <- ss)
+            lv.in(s)
     }
 
     def analyzeTasks(tasks: List[Task], tunit: TranslationUnit, fm: FeatureModel, opt: FamilyBasedVsSampleBasedOptions,
@@ -1642,6 +1641,7 @@ object FamilyBasedVsSampleBased extends EnforceTreeHelper with ASTNavigation wit
         (valid, tested)
     }
 }
+
 
 
 
