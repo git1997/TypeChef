@@ -62,17 +62,10 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
             if (v != null) Some(v)
             else None
         }
-
-        def clear() { cache.clear() }
     }
 
     private val predCCFGCache = new CFGCache()
     private val succCCFGCache = new CFGCache()
-
-    def clearCCFGCaches() {
-        predCCFGCache.clear()
-        succCCFGCache.clear()
-    }
 
     // result type of pred/succ determination
     // List[(computed annotation, given annotation, ast node)]
@@ -92,6 +85,8 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
             case None => {
                 var oldres: CFGRes = List()
                 val ctx = env.featureExpr(source)
+
+                if (ctx isContradiction (fm)) return List()
 
                 var newres: CFGRes = predHelper(source, ctx, oldres, fm, env)
                 var changed = true
@@ -312,7 +307,7 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
                 findPriorASTElem[FunctionDef](t, env) match {
                     case None => assert(assertion = false, message = "label statements should always occur within a function definition"); List()
                     case Some(f) => {
-                        val l_gotos = filterASTElems[GotoStatement](f, env).filter(env.featureExpr(_).and(env.featureExpr(t)).isSatisfiable(fm))
+                        val l_gotos = filterASTElems[GotoStatement](f, env.featureExpr(t), env)
                         // filter gotostatements with the same id as the labelstatement
                         // and all gotostatements with dynamic target
                         val l_gotos_filtered = l_gotos.filter({
@@ -347,6 +342,8 @@ trait IntraCFG extends ASTNavigation with ConditionalNavigation {
             case None => {
                 var newres: CFGRes = List()
                 val ctx = env.featureExpr(source)
+
+                if (ctx isContradiction (fm)) return List()
 
                 newres = succHelper(source, ctx, newres, fm, env)
 

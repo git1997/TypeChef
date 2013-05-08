@@ -94,5 +94,5 @@ class Liveness(env: ASTEnv, udm: UseDeclMap, fm: FeatureModel) extends MonotoneF
 
     def id2SetT(i: Id) = Set(i)
 
-    override val analysis_exit = analysis_exit_backward
+    override val analysis_exit = analysis_exit_forward
 }
