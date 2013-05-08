@@ -96,19 +96,7 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
     protected val analysis_exit_backward: AST => Map[T, FeatureExpr] =
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case e => {
-                val efexp = env.featureExpr(e)
                 var ss = succ(e, FeatureExprFactory.empty, env)
-
-                // check whether there is one succ with a different
-                // annotation than the source, if so recompute use
-                // the real feature model
-                println(efexp, ss.map(x => env.featureExpr(x.entry)))
-                if (! ss.forall(x => {
-                    env.featureExpr(x.entry).equivalentTo(efexp)
-                })) {
-                    clearCCFGCaches()
-                    ss = succ(e, fm, env)
-                }
 
                 ss = ss.filterNot(x => x.entry.isInstanceOf[FunctionDef])
 
@@ -124,18 +112,7 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
     protected val analysis_exit_forward: AST => Map[T, FeatureExpr] =
         circular[AST, Map[T, FeatureExpr]](Map[T, FeatureExpr]()) {
             case e => {
-                val efexp = env.featureExpr(e)
                 var ss = pred(e, FeatureExprFactory.empty, env)
-
-                // check whether there is one pred with a different
-                // annotation than the source, if so recompute use
-                // the real feature model
-                if (! ss.forall(x => {
-                    env.featureExpr(x.entry).equivalentTo(efexp)
-                })) {
-                    clearCCFGCaches()
-                    ss = pred(e, fm, env)
-                }
 
                 ss = ss.filterNot(x => x.entry.isInstanceOf[FunctionDef])
                 var res = Map[T, FeatureExpr]()
@@ -158,7 +135,7 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
         }
     }
 
-    def out(a: AST) = exit(a)
+    def out(a: AST) = exit(a).filter(_._2.isSatisfiable(fm))
 
     def entry(a: AST) = {
         entry_cache.lookup(a) match {
@@ -171,5 +148,5 @@ abstract class MonotoneFW[T](val env: ASTEnv, val udm: UseDeclMap, val fm: Featu
         }
     }
 
-    def in(a: AST) = entry(a)
+    def in(a: AST) = entry(a).filter(_._2.isSatisfiable(fm))
 }
